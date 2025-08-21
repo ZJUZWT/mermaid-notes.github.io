@@ -26,28 +26,28 @@ const CONFIG = {
             GA_Tutorial[相关范式]
 
             GA_UGameplayAbility[UGameplayAbility<br>技能本身]
-            GA_UGameplayAbility                 -.->        |Array| GA_UGameplayAbility_Array
-            GA_UGameplayAbility                 -->         |CDO<br>以脑海中的技能存在于| GA_FGameplayAbilitySpec
+            GA_UGameplayAbility                                 -.->        |Array| GA_UGameplayAbility_Array
+            GA_UGameplayAbility                                 -->         |CDO<br>以脑海中的技能存在于| GA_FGameplayAbilitySpec
 
             GA_UGameplayAbility_Array[UGameplayAbility<br>Array]
             GA_UGameplayAbility_Array@{ shape: processes }
-            GA_UGameplayAbility_Array           -->         |ReplicatedInstances/NonReplicatedInstances<br>InstancingPolicy相关<br>以释放出的技能存在于| GA_FGameplayAbilitySpec
+            GA_UGameplayAbility_Array                           -->         |ReplicatedInstances/NonReplicatedInstances<br>InstancingPolicy相关<br>以释放出的技能存在于| GA_FGameplayAbilitySpec
 
             GA_FGameplayAbilitySpec[FGameplayAbilitySpec<br>相当于学会的技能]
-            GA_FGameplayAbilitySpec             -->         |构造函数调用GenerateNewHandle| GA_FGameplayAbilitySpecHandle
-            GA_FGameplayAbilitySpec             -.->        |Array| GA_FGameplayAbilitySpec_Array
+            GA_FGameplayAbilitySpec                             -->         |构造函数调用GenerateNewHandle| GA_FGameplayAbilitySpecHandle
+            GA_FGameplayAbilitySpec                             -.->        |Array| GA_FGameplayAbilitySpec_Array
 
             GA_FGameplayAbilitySpec_Array[FGameplayAbilitySpec<br>Array]
             GA_FGameplayAbilitySpec_Array@{ shape: processes }
-            GA_FGameplayAbilitySpec_Array       -->         |GiveAbility/ClearAbility相关| GA_FGameplayAbilitySpecContainer
+            GA_FGameplayAbilitySpec_Array                       -->         |GiveAbility/ClearAbility相关| GA_FGameplayAbilitySpecContainer
             
             GA_FGameplayAbilitySpecHandle[FGameplayAbilitySpecHandle<br>static自增Id全局唯一<br>经常用来作为索引]
 
             GA_FGameplayAbilitySpecContainer[FGameplayAbilitySpecContainer]
 
             GA_FGameplayAbilitySpecDef[FGameplayAbilitySpecDef]
-            GA_FGameplayAbilitySpecDef          --->         |带上GEHandle可以生成| GA_FGameplayAbilitySpec
-            GA_FGameplayAbilitySpecDef          -.->         |带上GEHandle可以生成| GA_FGameplayAbilitySpecDef_Array
+            GA_FGameplayAbilitySpecDef                          --->         |带上GEHandle可以生成| GA_FGameplayAbilitySpec
+            GA_FGameplayAbilitySpecDef                          -.->         |带上GEHandle可以生成| GA_FGameplayAbilitySpecDef_Array
 
             GA_FGameplayAbilitySpecDef_Array[FGameplayAbilitySpecDef<br>Array]
             GA_FGameplayAbilitySpecDef_Array@{ shape: processes }
@@ -55,56 +55,82 @@ const CONFIG = {
             GA_FGameplayEventData[FGameplayEventData<br>通常也被系统称为Payload<br>被项目魔改了<br>魔改ASC:不需要Event驱动]
 
             GA_FGameplayAbilityTargetData[FGameplayAbilityTargetData<br>继承之后可以自定义的数据集合]
-            GA_FGameplayAbilityTargetData       -.->        |Array| GA_FGameplayAbilityTargetData_Array
+            GA_FGameplayAbilityTargetData                       -.->        |Array| GA_FGameplayAbilityTargetData_Array
 
             GA_FGameplayAbilityTargetData_Array[FGameplayAbilityTargetData<br>Array]
             GA_FGameplayAbilityTargetData_Array@{ shape: processes }
-            GA_FGameplayAbilityTargetData_Array -->         |被包裹| GA_FGameplayAbilityTargetDataHandle
+            GA_FGameplayAbilityTargetData_Array                 -->         |被包裹| GA_FGameplayAbilityTargetDataHandle
 
             GA_FGameplayAbilityTargetDataHandle[FGameplayAbilityTargetDataHandle]
-            GA_FGameplayAbilityTargetDataHandle -->         |装填进入| GA_FGameplayEventData
+            GA_FGameplayAbilityTargetDataHandle                 -->         |装填进入| GA_FGameplayEventData
         end
-        GA_FGameplayAbilitySpecContainer        -->         |ActivatableAbilities<br>Owner激活的GA<br>以学会的技能存在于| ASC_UAbilitySystemComponent
-        GA_FGameplayAbilitySpecHandle           -.->        |GameplayEventTriggeredAbilities<br>存储什么GT可以触发什么GA<br>GA AbilityTriggers相关<br>以Map的Key存在于| ASC_UAbilitySystemComponent
-        GA_FGameplayEventData                   -.-         |原生的GAS,两者通过GA<br>SendGameplayEvent交互<br>魔改后直接EventData作为Activate参数| ASC_UAbilitySystemComponent
-        GA_FGameplayAbilitySpecDef_Array        -->         |作为GrantedAbilitySpecs存在于<br>说明了GE可以GiveGA| GE_FGameplayEffectSpec
+        GA_FGameplayAbilitySpecContainer                        -->         |ActivatableAbilities<br>Owner激活的GA<br>以学会的技能存在于| ASC_UAbilitySystemComponent
+        GA_FGameplayAbilitySpecHandle                           -.->        |GameplayEventTriggeredAbilities<br>存储什么GT可以触发什么GA<br>GA AbilityTriggers相关<br>以Map的Key存在于| ASC_UAbilitySystemComponent
+        GA_FGameplayEventData                                   -.-         |原生的GAS,两者通过GA<br>SendGameplayEvent交互<br>魔改后直接EventData作为Activate参数| ASC_UAbilitySystemComponent
+        GA_FGameplayAbilitySpecDef_Array                        -->         |作为GrantedAbilitySpecs存在于<br>说明了GE可以GiveGA| GE_FGameplayEffectSpec
 
         subgraph GameplayEffect
             GE_Tutorial[相关范式]
 
             GE_UGameplayEffect[UGameplayEffect<br>技能修改数据模板]
-            GE_UGameplayEffect                  -->         |作为Def存在于| GE_FGameplayEffectSpec
+            GE_UGameplayEffect                                  -->         |作为Def存在于| GE_FGameplayEffectSpec
 
             GE_FGameplayEffectContext[FGameplayEffectContext<br>从GA提取，存储一部分上下文数据]
-            GE_FGameplayEffectContext           -->         |被包裹<br>SharedPtr| GE_FGameplayEffectContextHandle
+            GE_FGameplayEffectContext                           -->         |被包裹<br>SharedPtr| GE_FGameplayEffectContextHandle
 
             GE_FGameplayEffectContextHandle[FGameplayEffectContextHandle<br>这个和GASpecHandle/ActiveGEHandle又不一样<br>这玩意是一层SharedPtr包装]
-            GE_FGameplayEffectContextHandle     --->        |作为EffectContext存在于| GE_FGameplayEffectSpec
+            GE_FGameplayEffectContextHandle                     --->        |作为EffectContext存在于| GE_FGameplayEffectSpec
 
             GE_FActiveGameplayEffect[FActiveGameplayEffect]
-            GE_FActiveGameplayEffect            -->         |Array| GE_FActiveGameplayEffect_Array
+            GE_FActiveGameplayEffect                            -->         |Array| GE_FActiveGameplayEffect_Array
 
             GE_FActiveGameplayEffect_Array[FActiveGameplayEffect<br>Array]
             GE_FActiveGameplayEffect_Array@{ shape: processes }
-            GE_FActiveGameplayEffect_Array      -->         |被包裹| GE_FActiveGameplayEffectsContainer
+            GE_FActiveGameplayEffect_Array                      -->         |被包裹| GE_FActiveGameplayEffectsContainer
 
-            GE_FGameplayEffectSpec[FGameplayEffectSpec<br>技能修改数据包]
-            GE_FGameplayEffectSpec              -->         |被包裹| GE_FActiveGameplayEffect
-            GE_FGameplayEffectSpec              -->         GE_FAGEH_FAGE_MP
+            GE_FGameplayEffectSpec[FGameplayEffectSpec<br>技能修改数据包<br>所有的与修改相关的实例数据<br>包括了SetByCaller]
+            GE_FGameplayEffectSpec                              -->         |被包裹| GE_FActiveGameplayEffect
+            GE_FGameplayEffectSpec                              -->         GE_FAGEH_FAGE_MP
 
             GE_FAGEH_FAGE_MP( )
             style GE_FAGEH_FAGE_MP stroke-width:0,fill:transparent
-            GE_FAGEH_FAGE_MP                    -->         |一组存在于| GE_FActiveGameplayEffect
+            GE_FAGEH_FAGE_MP                                    -->         |一组存在于| GE_FActiveGameplayEffect
 
             GE_FActiveGameplayEffectHandle[FActiveGameplayEffectHandle]
-            GE_FActiveGameplayEffectHandle      -->         |这个和GA不一样，是手动生成的，而不是Spec构造时<br>通常使用场景为ApplyGameplayEffectSpec| GE_FAGEH_FAGE_MP
-
-            GE_FGameplayEffectModifierMagnitude[FGameplayEffectModifierMagnitude<br>Modifier的计算类]
-            GE_FGameplayEffectModifierMagnitude -->         |其中一种应用<br>SetSetByCallerMagnitude| GE_FGameplayEffectSpec
+            GE_FActiveGameplayEffectHandle                      -->         |这个和GA不一样，是手动生成的，而不是Spec构造时<br>通常使用场景为ApplyGameplayEffectSpec| GE_FAGEH_FAGE_MP
 
             GE_FActiveGameplayEffectsContainer[FActiveGameplayEffectsContainer]
         end
-        GE_FActiveGameplayEffectsContainer      -->         |ActiveGameplayEffects<br>存储当前运行中的DurationGE| ASC_UAbilitySystemComponent
+        GE_FActiveGameplayEffectsContainer                      -->         |ActiveGameplayEffects<br>存储当前运行中的DurationGE| ASC_UAbilitySystemComponent
+
+        subgraph Calculator
+            Calc_UGameplayEffectCalculation[UGameplayEffectCalculation<br>计算器的父类<br>本质上是一个AttributeCapture]
+            Calc_UGameplayEffectCalculation                     -->         |子类| Calc_UGameplayModMagnitudeCalculation
+            Calc_UGameplayEffectCalculation                     -->         |子类| Calc_UGameplayEffectExecutionCalculation
+
+            Calc_UGameplayModMagnitudeCalculation[UGameplayModMagnitudeCalculation<br>服务于Modifier<br>]
+            Calc_UGameplayModMagnitudeCalculation               -->         |CustomMagnitude内嵌的计算器| Calc_FCustomCalculationBasedFloat
+
+            Calc_UGameplayEffectExecutionCalculation[UGameplayEffectExecutionCalculation<br>服务于Executions<br>通常都是直接拿CDO进行计算]
+            Calc_UGameplayEffectExecutionCalculation            -->         |其Class被包装<br>因为通常只用CDO| Calc_FGameplayEffectExecutionDefinition
+
+            Calc_FGameplayEffectExecutionDefinition[FGameplayEffectExecutionDefinition]
+
+            Calc_FCustomCalculationBasedFloat[FCustomCalculationBasedFloat]
+            Calc_FCustomCalculationBasedFloat                   -->         |作为CustomMagnitude| Calc_FGameplayEffectModifierMagnitude
+
+            Calc_FGameplayEffectModifierMagnitude[FGameplayEffectModifierMagnitude<br>Modifier的计算类]
+            Calc_FGameplayEffectModifierMagnitude               -->         |被包裹| Calc_FGameplayModifierInfo_Array
+
+            Calc_FGameplayModifierInfo[FGameplayModifierInfo]
+            Calc_FGameplayModifierInfo                          -->         |Array| FGameplayModifierInfo_Array
+
+            Calc_FGameplayModifierInfo_Array[FGameplayModifierInfo<br>Array]
+            Calc_FGameplayModifierInfo_Array@{ shape: processes }
+            
+        end
+        %% Calc_FGameplayEffectModifierMagnitude                   -->         |其中一种应用<br>SetSetByCallerMagnitude| GE_FGameplayEffectSpec
+        Calc_FGameplayModifierInfo_Array                        ---->       |作为Modifiers存在于| GE_UGameplayEffect
 
         subgraph GameplayTags
             GT_FGameplayTagContainer[FGameplayTagContainer]
@@ -116,17 +142,21 @@ const CONFIG = {
         end
 
         subgraph AbilitySystemComponent
+            ASC_Tutorial[相关范式]
+
             ASC_UAbilitySystemComponent[UAbilitySystemComponent]
         end
 
         subgraph Ability/GameplayTask
+            GTask_Tutorial[相关范式]
+
             GTask_UGameplayTask[UGameplayTask<br>任务基类]
-            GTask_UGameplayTask                 -.->        |Array| GTask_UGameplayTask_Array
+            GTask_UGameplayTask                                 -.->        |Array| GTask_UGameplayTask_Array
 
             GTask_UGameplayTask_Array[UGameplayTask<br>Array]
             GTask_UGameplayTask_Array@{ shape: processes }
         end
-        GTask_UGameplayTask_Array               -->         |ActiveTasks<br>通过ASC<br>以执行中的任务存在于| GA_UGameplayAbility
+        GTask_UGameplayTask_Array                               -->         |ActiveTasks<br>通过ASC<br>以执行中的任务存在于| GA_UGameplayAbility
     `,
 
     // --- 在这里配置每个节点的详细信息 ---
@@ -350,7 +380,7 @@ const CONFIG = {
                 },
             ]
         },
-        'GE_FGameplayEffectModifierMagnitude' :
+        'Calc_FGameplayEffectModifierMagnitude' :
         {
             title: 'FGameplayEffectModifierMagnitude',
             variables: [
@@ -361,8 +391,16 @@ const CONFIG = {
                 { name: 'SetByCallerMagnitude', type: 'FSetByCallerFloat', desc: '当前Magnitude使用GESpec构造时SetByCaller的预设结果，具体用法可以参考Test_SetByCallerStackingDuration'},
             ]
         },
-
-
+        'Calc_UGameplayEffectExecutionCalculation' :
+        {
+            methods: [
+                {
+                    name: 'Execute',
+                    desc: '这里面非常重要，将FGameplayEffectCustomExecutionParameters输入进来，然后输出FGameplayEffectCustomExecutionOutput，自己只是一个处理器！',
+                    signature: 'void Execute(const FGameplayEffectCustomExecutionParameters& ExecutionParams, FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const;'
+                }
+            ]
+        },
         'GA_Tutorial' :
         {
             title: 'GA相关范式',
@@ -428,6 +466,70 @@ const CONFIG = {
                 {
                     name: 'GE的“法证报告”：EffectContext',
                     desc: '每个被应用的GE都携带一个`EffectContext`。这个“报告”记录了效果的完整因果链：谁发起的、由哪个技能、用什么东西造成的。这对于后续的逻辑判断（如伤害来源反弹、击杀归属）和调试至关重要。'
+                }
+            ]
+        },
+        'ASC_Tutorial' :
+        {
+            title: 'ASC (组件) 相关范式',
+            methods: [
+                {
+                    name: 'ASC的“身份”：核心中枢与数据中心',
+                    desc: 'ASC是Owner Actor（通常是PlayerState或AI Controller）的组件，但它在逻辑上与Avatar Actor（通常是Character）紧密绑定。<b>它的核心职责是：管理该Actor所拥有的所有技能（Abilities）、效果（Effects）、属性（Attributes）和标签（Tags）。</b>它是一个集中的数据中心和事件总线。'
+                },
+                {
+                    name: 'ASC作为“技能书”：管理Abilities',
+                    desc: 'ASC通过`FGameplayAbilitySpecContainer`（即`ActivatableAbilities`）存储所有已学会的技能。主要操作包括：<br>- <b>GiveAbility (赋予技能)</b>: 将一个技能模板（UGameplayAbility）添加到ASC中，创建一个`FGameplayAbilitySpec`实例并返回一个唯一的`Handle`。<br>- <b>ClearAbility (移除技能)</b>: 通过Handle移除一个已学会的技能。<br>- <b>TryActivateAbility (尝试激活)</b>: 这是从外部（如玩家输入）触发技能最常用的方式。它会根据Handle找到对应的Spec，检查能否激活，如果可以则执行。'
+                },
+                {
+                    name: 'ASC作为“状态面板”：管理Attributes',
+                    desc: 'ASC拥有并管理一个或多个`AttributeSet`。它不直接存储属性值（值在AttributeSet里），但它是所有属性修改的<b>唯一入口</b>。<br>- <b>获取属性</b>: 提供了`GetNumericAttribute()`等函数来安全地获取属性的最终值（BaseValue + Buffs）。<br>- <b>修改属性</b>: 外部不应直接修改AttributeSet。所有修改都应通过向ASC应用一个GE来完成，这是为了确保网络同步和可预测性。'
+                },
+                {
+                    name: 'ASC作为“Buff/Debuff栏”：管理Effects',
+                    desc: 'ASC通过`FActiveGameplayEffectsContainer`管理所有当前生效的GE实例（`FActiveGameplayEffect`）。<br>- <b>ApplyGameplayEffectToSelf/Target</b>: 这是将GE应用到角色身上的标准接口。<br>- <b>RemoveActiveGameplayEffect</b>: 通过Handle移除一个持续性或无限期的GE。<br>- <b>GetActiveEffects</b>: 可以查询当前ASC上所有生效的GE，用于UI显示或逻辑判断。'
+                },
+                {
+                    name: 'ASC作为“标签板”：管理Tags',
+                    desc: 'ASC维护着一个`FGameplayTagCountContainer`，聚合了所有来源的GameplayTag（来自生效的GE、激活的GA等）。它是所有状态判断的权威来源。<br>- <b>HasMatchingGameplayTag</b>: 检查角色当前是否拥有某个Tag（例如 `State.Stunned`），这是技能激活条件检查的核心。<br>- <b>Add/RemoveLooseGameplayTag</b>: 可以直接给ASC添加或移除“松散”的Tag，用于一些不适合用GE管理的临时状态。'
+                },
+                {
+                    name: 'ASC作为“事件中心”：处理事件与委托',
+                    desc: 'ASC是许多事件的广播者和处理者。<br>- <b>HandleGameplayEvent</b>: 接收外部通过`SendGameplayEventToActor`发来的事件，并将其分发给正在等待此事件的AbilityTask。<br>- <b>各种委托 (Delegates)</b>: ASC暴露了大量的委托，如`OnGameplayEffectAppliedDelegate`、`OnAnyGameplayTagChangedDelegate`，外部系统（如UI、声音系统）可以绑定这些委托来响应GAS内部的状态变化。'
+                },
+                {
+                    name: 'ASC的网络角色：同步的协调者',
+                    desc: 'ASC在网络同步中扮演着关键角色。<br>- <b>Replicated Attributes</b>: 它负责将AttributeSet中的属性标记为`Replicated`。<br>- <b>Replicated Tags</b>: 它负责将聚合后的GameplayTag同步到客户端。<br>- <b>Generic Replicated Objects</b>: 它管理`FActiveGameplayEffect`和`FGameplayAbilitySpec`的网络复制，确保客户端拥有正确的技能和效果信息。<br>- <b>RPCs</b>: 它提供了许多Server/Client/Multicast RPC，作为GA和GE网络通信的底层通道。'
+                }
+            ]
+        },
+        'GTask_Tutorial' :
+        {
+            title: 'AbilityTask (技能任务) 范式',
+            methods: [
+                {
+                    name: 'Task的“身份”：GA的异步执行单元',
+                    desc: 'AbilityTask是一个UObject，它封装了一个**异步的、可等待的**操作。它使得GA可以执行一个耗时的操作（如等待动画播放完）而**不会阻塞游戏线程**。<b>它是GA实现复杂、长时程、事件驱动逻辑的基石。</b>一个GA实例可以同时激活和管理多个Task。'
+                },
+                {
+                    name: 'Task的“生命周期”：创建 -> 激活 -> 等待 -> 回调 -> 结束',
+                    desc: '1. <b>创建 (NewObject)</b>: 在GA内部，通过调用静态的工厂函数（如`UAbilityTask_WaitDelay::WaitDelay()`）来创建Task的实例。<br>2. <b>激活 (Activate)</b>: 创建后，Task的`Activate()`函数被调用。它在这里启动真正的异步逻辑（如设置一个Timer、绑定一个外部委托）。<br>3. <b>等待</b>: Task进入等待状态，GA的执行流继续向下或暂时挂起。<br>4. <b>回调 (Delegate Broadcast)</b>: 当异步事件完成时（Timer到期、收到网络消息），Task会广播它的输出委托（如`OnFinish`）。<br>5. <b>结束 (EndTask)</b>: 绑定了委托的GA函数被执行。通常在这个函数里，或者当GA被取消时，会调用`EndTask()`来清理并销毁这个Task。'
+                },
+                {
+                    name: 'Task与GA的“契约”：委托 (Delegates)',
+                    desc: 'Task与创建它的GA之间通过委托进行通信。Task上会声明多个`F...DynamicDelegate`类型的成员，代表不同的输出路径。<br><b>例如 `UAbilityTask_WaitTargetData` 有：</b><br>- `ValidData`: 成功接收到目标数据时触发。<br>- `Cancelled`: 目标选择被取消时触发。<br>在GA中，创建Task后，你需要将GA的成员函数绑定到这些委托上，以定义“当...发生时，应该做什么”。'
+                },
+                {
+                    name: 'Task的网络同步',
+                    desc: '许多Task都需要处理网络同步，特别是那些等待服务器响应的Task。<br>- <b>WaitConfirm/WaitCancel</b>: 这是一个常见的模式。Task会等待一个来自服务器的通用RPC回调，来得知预测的操作是被确认还是被取消了。<br>- <b>Call Server/Client RPC</b>: Task内部可以直接调用其所属GA的RPC函数来与远程端通信。<br>- <b>`WaitNetSync`</b>: 一种特殊的Task，用于在客户端创建一个“同步点”，等待服务器的一个标记，确保客户端和服务器的逻辑在某个点上是对齐的。'
+                },
+                {
+                    name: 'Task的“分类”：常见的任务模式',
+                    desc: 'GAS自带了丰富的Task，涵盖了绝大多数需求：<br>- <b>时间类</b>: `WaitDelay`, `WaitFrameChange` (等待下一帧)。<br>- <b>输入/目标类</b>: `WaitTargetData`, `WaitInputPress/Release` (等待玩家按键)。<br>- <b>事件/数据类</b>: `WaitGameplayEvent`, `WaitAttributeChange`, `WaitGameplayTagAdded/Removed`。<br>- <b>世界交互类</b>: `PlayMontageAndWait` (动画), `ApplyRootMotion...` (移动), `WaitOverlap` (触发器)。'
+                },
+                {
+                    name: '自定义Task：扩展GA的能力',
+                    desc: '当内置Task不满足需求时，你可以创建自己的Task子类。这是扩展GAS能力最直接、最强大的方式。<br><b>自定义Task的步骤：</b><br>1. 创建一个继承自`UAbilityTask`的C++类。<br>2. 声明输出委托（如`FGenericGameplayTaskDelegate OnSuccess;`）。<br>3. 创建一个静态的工厂函数（如`static UMyTask* MyAwesomeTask(...)`），这是蓝图中创建此Task的节点。<br>4. 实现`Activate()`函数，在这里启动你的异步逻辑。<br>5. 在你的异步逻辑完成时，广播对应的委托。'
                 }
             ]
         }

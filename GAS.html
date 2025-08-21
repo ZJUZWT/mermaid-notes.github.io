@@ -55,10 +55,10 @@
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; display: flex; flex-direction: column; height: 100vh; margin: 0; background-color: var(--bg-color); color: var(--text-color); transition: background-color .3s, color .3s }
         .main-container { display: flex; flex: 1; overflow: hidden; position: relative; }
         #diagram-container { flex: 1; overflow: visible; text-align: center; background-color: var(--bg-color); background-image: linear-gradient(var(--grid-line-color) 1px, transparent 1px), linear-gradient(90deg, var(--grid-line-color) 1px, transparent 1px); background-size: 20px 20px }
-        #diagram-container svg { width: 100%; height: 100% }
+        #diagram-container svg { width: 100%; height: 100%; }
         
         #details-panel { 
-            width: 450px; 
+            width: 550px; 
             min-width: 300px;
             max-width: 70vw;
             padding: 20px; 
@@ -181,7 +181,9 @@
         .toast.fade-out { animation: toast-fade-out 0.3s ease-in forwards; }
         @keyframes toast-fade-in { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
         @keyframes toast-fade-out { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(100%); } }
-
+        /* * {
+    border: 1px solid red !important;
+} */
     </style>
 </head>
 <body>
@@ -287,6 +289,7 @@
                 mermaid.initialize({ startOnLoad: false, theme: currentTheme, flowchart: { useMaxWidth: false } });
                 
                 const { svg } = await mermaid.render('interactive-diagram-svg', CONFIG.diagramDefinition);
+
                 const container = document.getElementById('diagram-container');
                 container.innerHTML = svg;
                 const svgElement = container.querySelector('svg');
@@ -302,6 +305,7 @@
                         panEnabled: false, 
                         preventMouseEventsDefault: false 
                     });
+                    
                     svgElement.addEventListener('mousedown', (event) => { 
                         mouseDownTime = Date.now(); 
                         mouseDownPos = { x: event.clientX, y: event.clientY }; 
