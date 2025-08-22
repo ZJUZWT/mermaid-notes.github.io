@@ -374,6 +374,13 @@
                 }
                 titleEl.innerText = details.title || nodeId;
                 bodyEl.innerHTML = '';
+                bodyEl.innerHTML += `<div style="margin-top: 10px;">
+                    <img 
+                        src="images/GAS/${nodeId}.png" 
+                        alt="示例图片" 
+                        style="max-width: 100%; border-radius: 6px; border: 1px solid var(--border-color);"
+                        onerror="this.style.display='none'">
+                    </div>`;
                 bodyEl.innerHTML += createSection(CONFIG.uiStrings.variablesTitle, details.variables, 'variable', highlightItemName);
                 bodyEl.innerHTML += createSection(CONFIG.uiStrings.methodsTitle, details.methods, 'method', highlightItemName);
                 
