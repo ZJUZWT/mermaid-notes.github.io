@@ -88,11 +88,11 @@ const CONFIG = {
             GE_FActiveGameplayEffect_Array@{ shape: processes }
             GE_FActiveGameplayEffect_Array                      -->         |被包裹| GE_FActiveGameplayEffectsContainer
 
+            GE_FGameplayEffectSpec[FGameplayEffectSpec<br>技能修改数据包<br>所有的与修改相关的实例数据<br>包括了SetByCaller]
+            GE_FGameplayEffectSpec                              -->         |不是所有的有效GE都会传递到Active数组<br>有些可能直接触发完毕了&lpar;Instant&rpar;| GE_FAGEH_FAGE_MP
+
             GE_FActiveGameplayEffectHandle[FActiveGameplayEffectHandle]
             GE_FActiveGameplayEffectHandle                      -->         |这个和GA不一样，是手动生成的，而不是Spec构造时<br>通常使用场景为ApplyGameplayEffectSpec| GE_FAGEH_FAGE_MP
-
-            GE_FGameplayEffectSpec[FGameplayEffectSpec<br>技能修改数据包<br>所有的与修改相关的实例数据<br>包括了SetByCaller]
-            GE_FGameplayEffectSpec                              -->         GE_FAGEH_FAGE_MP
 
             GE_FAGEH_FAGE_MP( )
             style GE_FAGEH_FAGE_MP stroke-width:0,fill:transparent
@@ -100,7 +100,7 @@ const CONFIG = {
 
             GE_FActiveGameplayEffectsContainer[FActiveGameplayEffectsContainer<br>管理GE<br>管理AttributeAggregator]
 
-            GE_FGameplayEffectAttributeCaptureSpec[FGameplayEffectAttributeCaptureSpec<br>捕获引用]
+            GE_FGameplayEffectAttributeCaptureSpec[FGameplayEffectAttributeCaptureSpec<br>计算草稿和计算数据的绑定<br>向上提供给外部计算结果<br>向下捕获当前ActiveGEContainer下的Attribute对应Aggregator引用]
             GE_FGameplayEffectAttributeCaptureSpec              -.->        |Array| GE_FGameplayEffectAttributeCaptureSpec_Array
 
             GE_FGameplayEffectAttributeCaptureSpec_Array[FGameplayEffectAttributeCaptureSpec<br>Array]
@@ -109,17 +109,37 @@ const CONFIG = {
 
             GE_FGameplayEffectAttributeCaptureSpecContainer[FGameplayEffectAttributeCaptureSpecContainer<br>拥有Source和Target的Attribute捕获引用]
             GE_FGameplayEffectAttributeCaptureSpecContainer     -->         |作为Attribute捕获集合<br>CapturedRelevantAttributes存在于| GE_FGameplayEffectSpec
-
-            GE_FAggregator[FAggregator]
-            GE_FAggregator                                      -->         |ShaderPtr<br>被包裹| GE_FAggregatorRef
-            
-            GE_FAggregatorRef[FAggregatorRef]                   -->         |TMap&lt;FGameplayAttribute, FAggregatorRef&gt;<br>作为Attribute映射的Aggregator| GE_FActiveGameplayEffectsContainer
         end
         GE_FActiveGameplayEffectsContainer                      -->         |ActiveGameplayEffects<br>存储当前运行中的DurationGE| ASC_UAbilitySystemComponent
+        GE_FGameplayEffectAttributeCaptureSpec                  -->         |通过ActiveGEContainer绑定| AG_FAggregatorRef
+
+        subgraph Aggregator
+            AG_FAggregatorMod[FAggregatorMod<br>修改器参数<br>Result = &lpar;Base + A&rpar; * B / C里面的ABC<br>Result = Override里面的Override]
+            AG_FAggregatorMod                                   -.->        |Array| AG_FAggregatorMod_Array
+
+            AG_FAggregatorMod_Array[FAggregatorMod<br>Array]
+            AG_FAggregatorMod_Array@{ shape: processes }
+            AG_FAggregatorMod_Array                             -->         |四个数组对应上面的ABC与Override| AG_FAggregatorModChannel
+
+            AG_FAggregatorModChannel[FAggregatorModChannel<br>修改通道<br>保存了该通道的修改器集合]
+            AG_FAggregatorModChannel                            -.->        |Array| AG_FAggregatorModChannel_Array
+
+            AG_FAggregatorModChannel_Array[FAggregatorModChannel<br>Array]
+            AG_FAggregatorModChannel_Array@{ shape: processes }
+            AG_FAggregatorModChannel_Array                      -->         |被包裹| AG_FAggregatorModChannelContainer
+
+            AG_FAggregatorModChannelContainer[FAggregatorModChannelContainer<br>修改通道集合，记录所有通道的修改器<br>通道由小到大依次计算Channel<br>Channel 0的结果是Channel 1的BaseValue]
+            AG_FAggregatorModChannelContainer                   -->         |ModChannels<br>存储在AG_FAggregator中| AG_FAggregator
+
+            AG_FAggregator[FAggregator<br>GE配置的Modifier最终会变成这个数据<br>对同一个Attribute的修改会被聚合到这里]
+            AG_FAggregator                                      -->         |ShaderPtr<br>被包裹| AG_FAggregatorRef
+        end
+        AG_FAggregatorRef[FAggregatorRef]                       -->         |TMap&lt;FGameplayAttribute, FAggregatorRef&gt;<br>作为Attribute映射的Aggregator| GE_FActiveGameplayEffectsContainer
 
         subgraph AttributeSet
             AS_UAttributeSet[UAttributeSet]
             AS_FScalableFloat[FScalableFloat]
+            AS_FGameplayAttribute[TODO]
         end
         AS_FScalableFloat                                       -->         |作为ScalableFloatMagnitude| Calc_FGameplayEffectModifierMagnitude
 
@@ -394,6 +414,14 @@ const CONFIG = {
                         { name: 'SetByCallerNameMagnitudes', type: 'TMap&lt;FName, float&gt;', desc: '【Input】GE很多Magnitude可以设置SetByCaller类型，会从这数组里面取值，这个值不会传递' },
                         { name: 'SetByCallerTagMagnitudes', type: 'TMap&lt;FGameplayTag, float&gt;', desc: '【InOut】GE很多Magnitude可以设置SetByCaller类型，会从这数组里面取值，触发GA时，可传递给GA，当GA又触发GE的时候这个值会传递' },
                     ]
+                },
+                {
+                    category: '【Capture相关】',
+                    items: [
+                        { name: 'CapturedRelevantAttributes', type: 'FGameplayEffectAttributeCaptureSpecContainer', desc: '当前Spec捕获的Attribute引用集合' },
+                        { name: 'CapturedSourceTags', type: 'FGameplayTagContainer', desc: '捕获的SourceTags，在RecaptureSourceActorTags捕获' },
+                        { name: 'CapturedTargetTags', type: 'FGameplayTagContainer', desc: '捕获的TargetTags' },
+                    ]
                 }
             ],
             methods: [
@@ -432,8 +460,13 @@ const CONFIG = {
                     signature: 'FActiveGameplayEffect* ApplyGameplayEffectSpec(const FGameplayEffectSpec& Spec, FPredictionKey& InPredictionKey, bool& bFoundExistingStackableGE);'
                 },
                 {
+                    name: '【核心】AddActiveGameplayEffectGrantedTagsAndModifiers',
+                    desc: '将GE的多种Tag((Dynamic)GrantedTags/BlockedAbilityTags)添加到ASC中，并且将GE的Modifiers添加到Aggregator中。',
+                    signature: 'void AddActiveGameplayEffectGrantedTagsAndModifiers(FActiveGameplayEffect& Effect, bool bInvokeGameplayCueEvents);'
+                },
+                {
                     name: '【Capture相关】CaptureAttributeForGameplayEffect',
-                    desc: '去获取当前Attribute的Aggregator，并且选择是否去做Snapshot，如果Snapshot则返回当前Attribute的Aggregator快照，否则直接返回其Aggregator。',
+                    desc: '去获取当前Attribute的Aggregator，并且选择是否去做Snapshot，如果Snapshot则返回当前Attribute的Aggregator快照，否则直接返回其Aggregator。<br>是CaptureSpec和Aggregator的桥梁。',
                     signature: 'void CaptureAttributeForGameplayEffect(OUT FGameplayEffectAttributeCaptureSpec& OutCaptureSpec);'
                 },
                 {
@@ -493,12 +526,13 @@ const CONFIG = {
             methods: [
                 {
                     name: 'AddCaptureDefinition',
-                    desc: '增加当前的捕获',
+                    desc: '增加当前的捕获需求',
                     signature: 'void AddCaptureDefinition(const FGameplayEffectAttributeCaptureDefinition& InCaptureDefinition);'
                 },
                 {
-                    name: '',
-                    desc: '获取当前的'
+                    name: 'CaptureAttributes',
+                    desc: '执行捕获，通过ASC中转到ActiveGEContainer中去捕获Attribute',
+                    signature: 'void CaptureAttributes(class UAbilitySystemComponent* InAbilitySystemComponent, EGameplayEffectAttributeCaptureSource InCaptureSource);'
                 }
             ]
         },
@@ -516,12 +550,98 @@ const CONFIG = {
                 { name: 'Handle', type: 'int32', desc: '全局唯一标识符' }
             ]
         },
-        'GE_FAggregator':
+        'AG_FAggregatorRef':
+        {
+            title: 'FAggregatorRef',
+            variables: [
+                { name: 'Data', type: 'SharedPtr&lt;FAggregator&gt;', desc: '指向FAggregator的指针。' }
+            ],
+            methods: [
+                {
+                    name: 'TakeSnapshotOf',
+                    desc: '将自己变成输入的FAggregatorRef的快照。',
+                    signature: 'void TakeSnapshotOf(const FAggregatorRef& RefToSnapshot);'
+                }
+            ]
+        },
+        'AG_FAggregator':
         {
             title: 'FAggregator',
             variables: [
                 { name: 'BaseValue', type:'float', desc: '基础值'},
                 { name: 'ModChannels', type:'FAggregatorModChannelContainer', desc: '修改通道集合，前一个通道的结果会成为后一个通道的初始值。'}
+            ],
+            methods: [
+                {
+                    name: '【核心Qualify】EvaluateQualificationForAllMods',
+                    desc: '计算所有修改器资格(是否生效)，通常在Evaluate系列被调用。如果有MetaData，还会调用MetaData的自定义资格计算。',
+                    signature: 'void EvaluateQualificationForAllMods(const FAggregatorEvaluateParameters& Parameters) const;'
+                },
+                {
+                    name: '【核心Evaluate】(Reverse)Evaluate(ToChannel/WithBase)',
+                    desc: '计算当前Aggregator的结果，内部会计算一次Qualities。<br><ul><li>原始版本是，从最低的通道开始计算，直到最高的通道。</li><li>ReverseEvaluate，则从最高的通道开始计算，直到最低的通道。</li><li>ToChannel是计算到指定的通道</li><li>iWithBase是使用InlineBaseValue作为基础值。</li></ul>',
+                    signature: 'float Evaluate(const FAggregatorEvaluateParameters& Parameters) const;'
+                },
+                {
+                    name: '【核心Add】AddAggregatorMod',
+                    desc: '添加一个Channel为ModifierChannel的修改器到当前Aggregator的ModChannels中。',
+                    signature: 'void AddAggregatorMod(float EvaluatedData, TEnumAsByte<EGameplayModOp::Type> ModifierOp, EGameplayModEvaluationChannel ModifierChannel, const FGameplayTagRequirements*	SourceTagReqs, const FGameplayTagRequirements* TargetTagReqs, bool IsPredicted, FActiveGameplayEffectHandle ActiveHandle = FActiveGameplayEffectHandle() );'
+                }
+            ]
+        },
+        'AG_FAggregatorModChannelContainer':
+        {
+            title: 'FAggregatorModChannelContainer',
+            variables: [
+                { name: 'ModChannels', type: 'TArray&lt;FAggregatorModChannel&gt;', desc: '修改通道集合，前一个通道的结果会成为后一个通道的初始值。' }
+            ],
+            methods: [
+                {
+                    name: '【核心Qualify】EvaluateQualificationForAllMods',
+                    desc: '遍历计算所有Channel的修改器资格(是否生效)',
+                    signature: 'void EvaluateQualificationForAllMods(const FAggregatorEvaluateParameters& Parameters) const;'
+                }
+            ]
+        },
+        'AG_FAggregatorModChannel':
+        {
+            title: 'FAggregatorModChannel',
+            variables: [
+                { name: 'Mods', type: 'TArray&lt;FAggregatorMod&gt;', desc: '当前通道的修改器集合，其中Mods根据EGameplayModOp分为四种<ul><li>Additive</li><li>Multiplicative</li><li>Division</li><li>Override</li></ul>' }
+            ],
+            methods: [
+                {
+                    name: '【核心Evaluate】EvaluateWithBase',
+                    desc: '计算当前通道的结果值，使用FAggregatorEvaluateParameters作为输入参数<br>',
+                    signature: 'float EvaluateWithBase(float InlineBaseValue, const FAggregatorEvaluateParameters& Parameters) const;'
+                },
+                {
+                    name: '【核心Qualify】UpdateQualifiesOnAllMods',
+                    desc: '计算每一种Mod的资格(是否生效)',
+                    signature: 'void UpdateQualifiesOnAllMods(const FAggregatorEvaluateParameters& Parameters) const;'
+                },
+                {
+                    name: '【修改参数】AddMod',
+                    desc: '增加一条对应Op的修改器，通常SourceTagReqs和TargetTagReqs从FGameplayModifierInfo获得。',
+                    signature: 'void AddMod(float EvaluatedMagnitude, TEnumAsByte<EGameplayModOp::Type> ModOp, const FGameplayTagRequirements* SourceTagReqs, const FGameplayTagRequirements* TargetTagReqs, bool bIsPredicted, const FActiveGameplayEffectHandle& ActiveHandle);'
+                }
+            ]
+        },
+        'AG_FAggregatorMod':
+        {
+            title: 'FAggregatorMod',
+            variables: [
+                { name: 'SourceTagReqs', type: 'const FGameplayTagRequirements*', desc: 'Source的Tag Filter' },
+                { name: 'TargetTagReqs', type: 'const FGameplayTagRequirements*', desc: 'Target的Tag Filter' },
+                { name: 'EvaluatedMagnitude', type: 'float', desc: '当前修改器参数的数值' },
+                { name: 'ActiveHandle', type: 'FActiveGameplayEffectHandle', desc: '当前修改器对应的ActiveGEHandle，为什么需要这个参数，是因为Aggregator是ActiveGEContainer层级的，这里面管理了所有的ActiveGE。不同的GE的Source和Target不一样，所以需要保存一个ActiveGEHandle去访问当前Mod对应的GE，才能判断上面的Source/TargetTags Filter。' },
+            ],
+            methods: [
+                {
+                    name: 'UpdateQualifies',
+                    desc: '更新当前通道的Qualifies，',
+                    signature: 'void UpdateQualifies(const FAggregatorEvaluateParameters& Parameters) const;'
+                }
             ]
         },
         'Calc_FGameplayEffectModifierMagnitude' :
@@ -572,7 +692,13 @@ const CONFIG = {
         },
         'Calc_FAttributeBasedFloat' :
         {
-            title: 'FAttributeBasedFloat'
+            title: 'FAttributeBasedFloat',
+            methods: [
+                {
+                    name: 'CalculateMagnitude',
+                    desc: '计算当前AttributeBasedFloat的结果值，其中会调用',
+                }
+            ]
         },
         'Calc_FCustomCalculationBasedFloat' :
         {
