@@ -27,6 +27,8 @@
             --tooltip-bg-color: #fdfdfd;
             --toast-bg-color: #333;
             --toast-text-color: #fff;
+            --tab-active-bg: #e0e0e0;
+            --tab-active-border: #0056b3;
         }
 
         [data-theme=dark] {
@@ -50,12 +52,15 @@
             --tooltip-bg-color: #1F2937;
             --toast-bg-color: #f0f0f0;
             --toast-text-color: #111;
+            --tab-active-bg: #30363d;
+            --tab-active-border: #58a6ff;
         }
 
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; display: flex; flex-direction: column; height: 100vh; margin: 0; background-color: var(--bg-color); color: var(--text-color); transition: background-color .3s, color .3s }
         .main-container { display: flex; flex: 1; overflow: hidden; position: relative; }
-        #diagram-container { flex: 1; overflow: visible; text-align: center; background-color: var(--bg-color); background-image: linear-gradient(var(--grid-line-color) 1px, transparent 1px), linear-gradient(90deg, var(--grid-line-color) 1px, transparent 1px); background-size: 20px 20px }
-        #diagram-container svg { width: 100%; height: 100%; }
+        .diagram-content { flex: 1; overflow: visible; text-align: center; background-color: var(--bg-color); background-image: linear-gradient(var(--grid-line-color) 1px, transparent 1px), linear-gradient(90deg, var(--grid-line-color) 1px, transparent 1px); background-size: 20px 20px; display: none; }
+        .diagram-content.active { display: block; }
+        .diagram-content svg { width: 100%; height: 100%; }
         
         #details-panel { 
             width: 550px; 
@@ -133,6 +138,9 @@
         #search-box { padding: 8px 12px; border: 1px solid var(--border-color); background-color: var(--bg-color); color: var(--text-color); border-radius: 6px; width: 350px }
 
         #drag-hint { font-size: 0.8em; opacity: 0.6; margin-left: 20px; }
+        #tabs-container { margin-left: 20px; display: flex; gap: 4px; }
+        .tab-btn { padding: 8px 16px; border: none; border-bottom: 3px solid transparent; background-color: transparent; cursor: pointer; color: var(--text-color); font-size: 1em; opacity: 0.7; }
+        .tab-btn.active { font-weight: bold; opacity: 1; border-bottom-color: var(--tab-active-border); }
 
         .search-highlight>rect, .search-highlight>polygon { stroke: var(--search-highlight-stroke) !important; stroke-width: 2.5px !important }
         .selected-node>rect, .selected-node>polygon { stroke: var(--selected-node-stroke) !important; stroke-width: 3.5px !important }
@@ -170,31 +178,31 @@
         [data-theme="dark"] .token.comment { color: #6a737d; font-style: italic; }
         
         .node .label { white-space: pre-wrap !important; overflow-wrap: break-word !important; }
-        #diagram-container .root foreignObject { overflow: visible !important;}
-        #diagram-container svg text, #diagram-container svg tspan { user-select: text !important; -webkit-user-select: text !important; }
-        body.alt-key-down #diagram-container svg text, body.alt-key-down #diagram-container svg tspan { user-select: none !important; -webkit-user-select: none !important; }
-        body.alt-key-down #diagram-container svg { cursor: grab; }
-        body.alt-key-down #diagram-container svg:active { cursor: grabbing; }
+        .diagram-content .root foreignObject { overflow: visible !important;}
+        .diagram-content svg text, .diagram-content svg tspan { user-select: text !important; -webkit-user-select: text !important; }
+        body.alt-key-down .diagram-content svg text, body.alt-key-down .diagram-content svg tspan { user-select: none !important; -webkit-user-select: none !important; }
+        body.alt-key-down .diagram-content svg { cursor: grab; }
+        body.alt-key-down .diagram-content svg:active { cursor: grabbing; }
 
         #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 10000; display: flex; flex-direction: column; gap: 10px; }
         .toast { padding: 12px 20px; border-radius: 6px; background-color: var(--toast-bg-color); color: var(--toast-text-color); box-shadow: 0 4px 12px rgba(0,0,0,0.15); animation: toast-fade-in 0.3s ease-out; }
         .toast.fade-out { animation: toast-fade-out 0.3s ease-in forwards; }
         @keyframes toast-fade-in { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
         @keyframes toast-fade-out { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(100%); } }
-        /* * {
-    border: 1px solid red !important;
-} */
     </style>
 </head>
 <body>
     <div class="header">
         <h1 id="main-title"></h1>
-        <span id="drag-hint"></span>
-        <input type="text" id="search-box">
-        <button id="theme-toggle-btn"></button>
+        <div id="tabs-container"></div>
+        <div style="flex-grow: 1; display: flex; justify-content: flex-end; align-items: center;">
+            <span id="drag-hint"></span>
+            <input type="text" id="search-box">
+            <button id="theme-toggle-btn"></button>
+        </div>
     </div>
-    <div class="main-container">
-        <div id="diagram-container"></div>
+    <div id="diagrams-wrapper" class="main-container">
+        <!-- Diagram containers will be injected here by JS -->
         <div id="details-panel">
             <div id="panel-resizer"></div>
             <div class="panel-header">
@@ -214,10 +222,13 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
     <script defer>
         document.addEventListener('DOMContentLoaded', () => {
-            let panZoomInstance = null;
+            // --- Global State ---
+            let panZoomInstances = [];
+            let currentTabIndex = 0;
             let mouseDownTime = 0;
             let mouseDownPos = { x: 0, y: 0 };
             
+            // --- DOM Element References ---
             const panel = document.getElementById('details-panel');
             const titleEl = document.getElementById('details-title');
             const bodyEl = document.getElementById('details-body');
@@ -226,6 +237,12 @@
             const toastContainer = document.getElementById('toast-container');
             const closePanelBtn = document.getElementById('close-panel-btn');
             const resizer = document.getElementById('panel-resizer');
+            const diagramsWrapper = document.getElementById('diagrams-wrapper');
+            const tabsContainer = document.getElementById('tabs-container');
+
+            // --- Helper Functions ---
+            function getActivePanZoomInstance() { return panZoomInstances[currentTabIndex]; }
+            function getActiveDiagramContainer() { return document.getElementById(`diagram-container-${currentTabIndex}`); }
 
             function applyUiStrings() {
                 document.getElementById('main-title').textContent = CONFIG.uiStrings.mainTitle;
@@ -245,25 +262,25 @@
                 }, duration);
             }
 
-            function clearAllHighlights() { document.querySelectorAll('.search-highlight, .selected-node').forEach(el => el.classList.remove('search-highlight', 'selected-node')); }
+            function clearAllHighlights() {
+                const activeContainer = getActiveDiagramContainer();
+                if (activeContainer) {
+                    activeContainer.querySelectorAll('.search-highlight, .selected-node').forEach(el => el.classList.remove('search-highlight', 'selected-node'));
+                }
+            }
             
             function offsetDiagramForPanel(isPanelOpen) {
+                const panZoomInstance = getActivePanZoomInstance();
                 if (!panZoomInstance) return;
                 const sizes = panZoomInstance.getSizes();
                 const pan = panZoomInstance.getPan();
                 
-                const diagramContainerWidth = document.getElementById('diagram-container').clientWidth;
+                const diagramContainerWidth = getActiveDiagramContainer().clientWidth;
                 const panelWidth = isPanelOpen ? panel.offsetWidth : 0;
-                
                 const visibleAreaWidth = diagramContainerWidth - panelWidth;
                 
-                // The desired center for the diagram's content within the visible area
                 const targetViewportX = visibleAreaWidth / 2;
-
-                // The actual center of the diagram's content
                 const diagramContentCenterX = sizes.viewBox.width / 2 * sizes.realZoom;
-                
-                // Calculate the required pan.x to align the diagram center with the target center
                 const desiredPanX = targetViewportX - diagramContentCenterX;
                 
                 panZoomInstance.pan({ x: desiredPanX, y: pan.y });
@@ -277,47 +294,46 @@
 
             function handleNodeClick(nodeId, highlightItemName = null) { 
                 clearAllHighlights(); 
-                const nodeElement = document.querySelector(`g[data-node-id="${nodeId}"]`); 
+                const nodeElement = getActiveDiagramContainer().querySelector(`g[data-node-id="${nodeId}"]`); 
                 if (nodeElement) { 
                     nodeElement.classList.add('selected-node'); 
                 } 
                 showNodeDetails(nodeId, highlightItemName); 
             }
             
-            async function initializeDiagram() {
+            async function initializeDiagram(tabIndex) {
+                if (panZoomInstances[tabIndex]) return; // Already initialized
+
                 const currentTheme = document.body.getAttribute('data-theme') === 'dark' ? 'dark' : 'default';
                 mermaid.initialize({ startOnLoad: false, theme: currentTheme, flowchart: { useMaxWidth: false } });
                 
-                const { svg } = await mermaid.render('interactive-diagram-svg', CONFIG.diagramDefinition);
+                const diagramDef = CONFIG.diagrams[tabIndex].definition;
+                const { svg } = await mermaid.render(`interactive-diagram-svg-${tabIndex}`, diagramDef);
 
-                const container = document.getElementById('diagram-container');
+                const container = document.getElementById(`diagram-container-${tabIndex}`);
                 container.innerHTML = svg;
                 const svgElement = container.querySelector('svg');
                 
                 if (svgElement) {
-                    if (panZoomInstance) panZoomInstance.destroy();
-                    panZoomInstance = svgPanZoom(svgElement, { 
-                        zoomEnabled: true, 
-                        controlIconsEnabled: true, 
-                        fit: true, 
-                        center: true, 
-                        contain: true, 
-                        panEnabled: false, 
-                        preventMouseEventsDefault: false,
-                        dblClickZoomEnabled: false,
-                        zoomScaleSensitivity: 0.5
+                    panZoomInstances[tabIndex] = svgPanZoom(svgElement, { 
+                        zoomEnabled: true, controlIconsEnabled: true, fit: true, center: true, 
+                        contain: true, panEnabled: false, preventMouseEventsDefault: false,
+                        dblClickZoomEnabled: false, zoomScaleSensitivity: 0.5
                     });
+                    
+                    // Alt+Drag bug fix
+                    svgElement.addEventListener('dragstart', (event) => { event.preventDefault(); });
                     
                     svgElement.addEventListener('mousedown', (event) => { 
                         mouseDownTime = Date.now(); 
                         mouseDownPos = { x: event.clientX, y: event.clientY }; 
                         if (event.altKey && event.button === 0) { 
-                            panZoomInstance.enablePan(); 
+                            getActivePanZoomInstance()?.enablePan(); 
                         } 
                     });
                     svgElement.addEventListener('mouseup', (event) => { 
                         if (event.button !== 0) return; 
-                        panZoomInstance.disablePan(); 
+                        getActivePanZoomInstance()?.disablePan(); 
                         const timeDiff = Date.now() - mouseDownTime; 
                         const dist = Math.hypot(event.clientX - mouseDownPos.x, event.clientY - mouseDownPos.y); 
                         if (timeDiff < 200 && dist < 5 && !event.altKey) { 
@@ -332,7 +348,7 @@
                 
                 for (const nodeId in CONFIG.nodeDetails) {
                     const selector = `g[id*="-${nodeId}-"]`;
-                    const nodeElement = document.querySelector(selector);
+                    const nodeElement = container.querySelector(selector);
                     if (nodeElement) { 
                         nodeElement.classList.add('clickable-node'); 
                         nodeElement.setAttribute('data-node-id', nodeId); 
@@ -396,8 +412,10 @@
             
             function showSearchResults(matches) { 
                 clearAllHighlights(); 
-                const matchedNodeIds = new Set(matches.map(m => m.nodeId)); 
-                matchedNodeIds.forEach(id => { const el = document.querySelector(`g[data-node-id="${id}"]`); if(el) el.classList.add('search-highlight'); }); 
+                const matchedNodeIds = new Set(matches.map(m => m.nodeId));
+                const activeContainer = getActiveDiagramContainer();
+                matchedNodeIds.forEach(id => { const el = activeContainer.querySelector(`g[data-node-id="${id}"]`); if(el) el.classList.add('search-highlight'); }); 
+                
                 titleEl.innerText = CONFIG.uiStrings.searchResultsTitle(matches.length); 
                 if (matches.length === 0) { 
                     bodyEl.innerHTML = `<p>${CONFIG.uiStrings.noResults}</p>`; 
@@ -531,17 +549,69 @@
                 window.removeEventListener('mouseup', stopResizing);
             };
 
-            // --- 初始化流程 ---
+            // --- Tab Management ---
+            function switchTab(tabIndex) {
+                currentTabIndex = tabIndex;
+                
+                document.querySelectorAll('.tab-btn').forEach((btn, index) => {
+                    btn.classList.toggle('active', index === tabIndex);
+                });
+
+                document.querySelectorAll('.diagram-content').forEach((content, index) => {
+                    content.classList.toggle('active', index === tabIndex);
+                });
+                
+                closeDetailsPanel();
+                searchBox.value = '';
+                
+                initializeDiagram(tabIndex).then(() => {
+                     // After initializing (if needed), ensure it's centered
+                    const panZoomInstance = getActivePanZoomInstance();
+                    if(panZoomInstance) {
+                        panZoomInstance.resize();
+                        panZoomInstance.center();
+                        panZoomInstance.fit();
+                    }
+                });
+            }
+            
+            function setupTabs() {
+                CONFIG.diagrams.forEach((diagram, index) => {
+                    // Create tab button
+                    const tabBtn = document.createElement('button');
+                    tabBtn.className = 'tab-btn';
+                    tabBtn.textContent = diagram.title;
+                    tabBtn.addEventListener('click', () => switchTab(index));
+                    tabsContainer.appendChild(tabBtn);
+
+                    // Create diagram container
+                    const diagramContainer = document.createElement('div');
+                    diagramContainer.id = `diagram-container-${index}`;
+                    diagramContainer.className = 'diagram-content';
+                    // Insert before the panel
+                    diagramsWrapper.insertBefore(diagramContainer, panel);
+                });
+            }
+            
+            function reinitializeAllDiagrams() {
+                const theme = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+                document.body.setAttribute('data-theme', theme);
+                localStorage.setItem('theme', theme);
+
+                // Destroy all existing instances
+                panZoomInstances.forEach(instance => instance?.destroy());
+                panZoomInstances = []; // Reset the array
+                
+                // Re-initialize the current tab's diagram
+                initializeDiagram(currentTabIndex);
+            }
+
+            // --- Initialization Flow ---
             const savedTheme = localStorage.getItem('theme') || 'light';
             document.body.setAttribute('data-theme', savedTheme);
             
             const themeToggleBtn = document.getElementById('theme-toggle-btn');
-            themeToggleBtn.addEventListener('click', () => { 
-                const newTheme = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'; 
-                document.body.setAttribute('data-theme', newTheme); 
-                localStorage.setItem('theme', newTheme); 
-                initializeDiagram(); 
-            });
+            themeToggleBtn.addEventListener('click', reinitializeAllDiagrams);
 
             window.addEventListener('keydown', (event) => { if (event.key === 'Alt') { event.preventDefault(); document.body.classList.add('alt-key-down'); } });
             window.addEventListener('keyup', (event) => { if (event.key === 'Alt') { document.body.classList.remove('alt-key-down'); } });
@@ -555,7 +625,8 @@
 
             applyUiStrings();
             setupPanelEventListeners();
-            initializeDiagram();
+            setupTabs();
+            switchTab(0); // Load the first tab by default
         });
     </script>
 </body>

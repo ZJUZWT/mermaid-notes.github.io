@@ -6,7 +6,7 @@
 const CONFIG = {
     // --- UI 显示文本配置 ---
     uiStrings: {
-        mainTitle: "GAS 核心类型交互图",
+        mainTitle: "Gameplay Ability System",
         dragHint: "(按住 Alt + 左键拖拽画布)",
         searchPlaceholder: "搜索变量/方法 (支持多词)",
         themeToggleButton: "切换主题",
@@ -18,206 +18,232 @@ const CONFIG = {
         copySuccessToast: "函数签名已复制!",
         copyFailToast: "复制失败"
     },
+    
+    // --- 图表定义 (支持多个) ---
+    diagrams: [
+        {
+            title: "GAS 核心类型",
+            definition: `
+                graph TD
+                subgraph GameplayAbility
+                    GA_Tutorial[相关范式]
 
-    // --- 保持您的Mermaid代码原封不动 ---
-    diagramDefinition: `
-        graph TD
-        subgraph GameplayAbility
-            GA_Tutorial[相关范式]
+                    GA_UGameplayAbility[UGameplayAbility<br>技能本身]
+                    GA_UGameplayAbility                                 -.->        |Array| GA_UGameplayAbility_Array
+                    GA_UGameplayAbility                                 -->         |CDO<br>以脑海中的技能存在于| GA_FGameplayAbilitySpec
 
-            GA_UGameplayAbility[UGameplayAbility<br>技能本身]
-            GA_UGameplayAbility                                 -.->        |Array| GA_UGameplayAbility_Array
-            GA_UGameplayAbility                                 -->         |CDO<br>以脑海中的技能存在于| GA_FGameplayAbilitySpec
+                    GA_UGameplayAbility_Array[UGameplayAbility<br>Array]
+                    GA_UGameplayAbility_Array@{ shape: processes }
+                    GA_UGameplayAbility_Array                           -->         |ReplicatedInstances/NonReplicatedInstances<br>InstancingPolicy相关<br>以释放出的技能存在于| GA_FGameplayAbilitySpec
 
-            GA_UGameplayAbility_Array[UGameplayAbility<br>Array]
-            GA_UGameplayAbility_Array@{ shape: processes }
-            GA_UGameplayAbility_Array                           -->         |ReplicatedInstances/NonReplicatedInstances<br>InstancingPolicy相关<br>以释放出的技能存在于| GA_FGameplayAbilitySpec
+                    GA_FGameplayAbilitySpec[FGameplayAbilitySpec<br>相当于学会的技能]
+                    GA_FGameplayAbilitySpec                             -->         |构造函数调用GenerateNewHandle| GA_FGameplayAbilitySpecHandle
+                    GA_FGameplayAbilitySpec                             -.->        |Array| GA_FGameplayAbilitySpec_Array
 
-            GA_FGameplayAbilitySpec[FGameplayAbilitySpec<br>相当于学会的技能]
-            GA_FGameplayAbilitySpec                             -->         |构造函数调用GenerateNewHandle| GA_FGameplayAbilitySpecHandle
-            GA_FGameplayAbilitySpec                             -.->        |Array| GA_FGameplayAbilitySpec_Array
+                    GA_FGameplayAbilitySpec_Array[FGameplayAbilitySpec<br>Array]
+                    GA_FGameplayAbilitySpec_Array@{ shape: processes }
+                    GA_FGameplayAbilitySpec_Array                       -->         |GiveAbility/ClearAbility相关| GA_FGameplayAbilitySpecContainer
+                    
+                    GA_FGameplayAbilitySpecHandle[FGameplayAbilitySpecHandle<br>static自增Id全局唯一<br>经常用来作为索引]
 
-            GA_FGameplayAbilitySpec_Array[FGameplayAbilitySpec<br>Array]
-            GA_FGameplayAbilitySpec_Array@{ shape: processes }
-            GA_FGameplayAbilitySpec_Array                       -->         |GiveAbility/ClearAbility相关| GA_FGameplayAbilitySpecContainer
-            
-            GA_FGameplayAbilitySpecHandle[FGameplayAbilitySpecHandle<br>static自增Id全局唯一<br>经常用来作为索引]
+                    GA_FGameplayAbilitySpecContainer[FGameplayAbilitySpecContainer]
 
-            GA_FGameplayAbilitySpecContainer[FGameplayAbilitySpecContainer]
+                    GA_FGameplayAbilitySpecDef[FGameplayAbilitySpecDef]
+                    GA_FGameplayAbilitySpecDef                          --->         |带上GEHandle可以生成| GA_FGameplayAbilitySpec
+                    GA_FGameplayAbilitySpecDef                          -.->         |带上GEHandle可以生成| GA_FGameplayAbilitySpecDef_Array
 
-            GA_FGameplayAbilitySpecDef[FGameplayAbilitySpecDef]
-            GA_FGameplayAbilitySpecDef                          --->         |带上GEHandle可以生成| GA_FGameplayAbilitySpec
-            GA_FGameplayAbilitySpecDef                          -.->         |带上GEHandle可以生成| GA_FGameplayAbilitySpecDef_Array
+                    GA_FGameplayAbilitySpecDef_Array[FGameplayAbilitySpecDef<br>Array]
+                    GA_FGameplayAbilitySpecDef_Array@{ shape: processes }
 
-            GA_FGameplayAbilitySpecDef_Array[FGameplayAbilitySpecDef<br>Array]
-            GA_FGameplayAbilitySpecDef_Array@{ shape: processes }
+                    GA_FGameplayEventData[FGameplayEventData<br>通常也被系统称为Payload<br>被项目魔改了<br>魔改ASC:不需要Event驱动]
 
-            GA_FGameplayEventData[FGameplayEventData<br>通常也被系统称为Payload<br>被项目魔改了<br>魔改ASC:不需要Event驱动]
+                    GA_FGameplayAbilityTargetData[FGameplayAbilityTargetData<br>继承之后可以自定义的数据集合]
+                    GA_FGameplayAbilityTargetData                       -.->        |Array| GA_FGameplayAbilityTargetData_Array
 
-            GA_FGameplayAbilityTargetData[FGameplayAbilityTargetData<br>继承之后可以自定义的数据集合]
-            GA_FGameplayAbilityTargetData                       -.->        |Array| GA_FGameplayAbilityTargetData_Array
+                    GA_FGameplayAbilityTargetData_Array[FGameplayAbilityTargetData<br>Array]
+                    GA_FGameplayAbilityTargetData_Array@{ shape: processes }
+                    GA_FGameplayAbilityTargetData_Array                 -->         |被包裹| GA_FGameplayAbilityTargetDataHandle
 
-            GA_FGameplayAbilityTargetData_Array[FGameplayAbilityTargetData<br>Array]
-            GA_FGameplayAbilityTargetData_Array@{ shape: processes }
-            GA_FGameplayAbilityTargetData_Array                 -->         |被包裹| GA_FGameplayAbilityTargetDataHandle
+                    GA_FGameplayAbilityTargetDataHandle[FGameplayAbilityTargetDataHandle]
+                    GA_FGameplayAbilityTargetDataHandle                 -->         |装填进入| GA_FGameplayEventData
+                end
+                GA_FGameplayAbilitySpecContainer                        -->         |ActivatableAbilities<br>Owner激活的GA<br>以学会的技能存在于| ASC_UAbilitySystemComponent
+                GA_FGameplayAbilitySpecHandle                           -.->        |GameplayEventTriggeredAbilities<br>存储什么GT可以触发什么GA<br>GA AbilityTriggers相关<br>以Map的Key存在于| ASC_UAbilitySystemComponent
+                GA_FGameplayEventData                                   -.-         |原生的GAS,两者通过GA<br>SendGameplayEvent交互<br>魔改后直接EventData作为Activate参数| ASC_UAbilitySystemComponent
+                GA_FGameplayAbilitySpecDef_Array                        -->         |作为GrantedAbilitySpecs存在于<br>说明了GE可以GiveGA| GE_FGameplayEffectSpec
 
-            GA_FGameplayAbilityTargetDataHandle[FGameplayAbilityTargetDataHandle]
-            GA_FGameplayAbilityTargetDataHandle                 -->         |装填进入| GA_FGameplayEventData
-        end
-        GA_FGameplayAbilitySpecContainer                        -->         |ActivatableAbilities<br>Owner激活的GA<br>以学会的技能存在于| ASC_UAbilitySystemComponent
-        GA_FGameplayAbilitySpecHandle                           -.->        |GameplayEventTriggeredAbilities<br>存储什么GT可以触发什么GA<br>GA AbilityTriggers相关<br>以Map的Key存在于| ASC_UAbilitySystemComponent
-        GA_FGameplayEventData                                   -.-         |原生的GAS,两者通过GA<br>SendGameplayEvent交互<br>魔改后直接EventData作为Activate参数| ASC_UAbilitySystemComponent
-        GA_FGameplayAbilitySpecDef_Array                        -->         |作为GrantedAbilitySpecs存在于<br>说明了GE可以GiveGA| GE_FGameplayEffectSpec
+                subgraph GameplayEffect
+                    GE_Tutorial[相关范式]
 
-        subgraph GameplayEffect
-            GE_Tutorial[相关范式]
+                    GE_FGameplayEffectContextHandle[FGameplayEffectContextHandle<br>这个和GASpecHandle/ActiveGEHandle又不一样<br>这玩意是一层SharedPtr包装]
+                    GE_FGameplayEffectContextHandle                     --->        |作为EffectContext存在于| GE_FGameplayEffectSpec
 
-            GE_FGameplayEffectContextHandle[FGameplayEffectContextHandle<br>这个和GASpecHandle/ActiveGEHandle又不一样<br>这玩意是一层SharedPtr包装]
-            GE_FGameplayEffectContextHandle                     --->        |作为EffectContext存在于| GE_FGameplayEffectSpec
+                    GE_UGameplayEffect[UGameplayEffect<br>技能修改数据模板]
+                    GE_UGameplayEffect                                  -->         |作为Def存在于| GE_FGameplayEffectSpec
 
-            GE_UGameplayEffect[UGameplayEffect<br>技能修改数据模板]
-            GE_UGameplayEffect                                  -->         |作为Def存在于| GE_FGameplayEffectSpec
+                    GE_FGameplayEffectContext[FGameplayEffectContext<br>从GA提取，存储一部分上下文数据<br>部分Actor会在创建时设置<br>]
+                    GE_FGameplayEffectContext                           -->         |被包裹<br>SharedPtr| GE_FGameplayEffectContextHandle
 
-            GE_FGameplayEffectContext[FGameplayEffectContext<br>从GA提取，存储一部分上下文数据<br>部分Actor会在创建时设置<br>]
-            GE_FGameplayEffectContext                           -->         |被包裹<br>SharedPtr| GE_FGameplayEffectContextHandle
+                    GE_FActiveGameplayEffect[FActiveGameplayEffect]
+                    GE_FActiveGameplayEffect                            -.->        |Array| GE_FActiveGameplayEffect_Array
 
-            GE_FActiveGameplayEffect[FActiveGameplayEffect]
-            GE_FActiveGameplayEffect                            -.->        |Array| GE_FActiveGameplayEffect_Array
+                    GE_FActiveGameplayEffect_Array[FActiveGameplayEffect<br>Array]
+                    GE_FActiveGameplayEffect_Array@{ shape: processes }
+                    GE_FActiveGameplayEffect_Array                      -->         |被包裹| GE_FActiveGameplayEffectsContainer
 
-            GE_FActiveGameplayEffect_Array[FActiveGameplayEffect<br>Array]
-            GE_FActiveGameplayEffect_Array@{ shape: processes }
-            GE_FActiveGameplayEffect_Array                      -->         |被包裹| GE_FActiveGameplayEffectsContainer
+                    GE_FGameplayEffectSpec[FGameplayEffectSpec<br>技能修改数据包<br>所有的与修改相关的实例数据<br>包括了SetByCaller]
+                    GE_FGameplayEffectSpec                              -->         |不是所有的有效GE都会传递到Active数组<br>有些可能直接触发完毕了&lpar;Instant&rpar;| GE_FAGEH_FAGE_MP
 
-            GE_FGameplayEffectSpec[FGameplayEffectSpec<br>技能修改数据包<br>所有的与修改相关的实例数据<br>包括了SetByCaller]
-            GE_FGameplayEffectSpec                              -->         |不是所有的有效GE都会传递到Active数组<br>有些可能直接触发完毕了&lpar;Instant&rpar;| GE_FAGEH_FAGE_MP
+                    GE_FActiveGameplayEffectHandle[FActiveGameplayEffectHandle]
+                    GE_FActiveGameplayEffectHandle                      -->         |这个和GA不一样，是手动生成的，而不是Spec构造时<br>通常使用场景为ApplyGameplayEffectSpec| GE_FAGEH_FAGE_MP
 
-            GE_FActiveGameplayEffectHandle[FActiveGameplayEffectHandle]
-            GE_FActiveGameplayEffectHandle                      -->         |这个和GA不一样，是手动生成的，而不是Spec构造时<br>通常使用场景为ApplyGameplayEffectSpec| GE_FAGEH_FAGE_MP
+                    GE_FAGEH_FAGE_MP( )
+                    style GE_FAGEH_FAGE_MP stroke-width:0,fill:transparent
+                    GE_FAGEH_FAGE_MP                                    -->         |一组对应的Spec/SpecHandle存在于| GE_FActiveGameplayEffect
 
-            GE_FAGEH_FAGE_MP( )
-            style GE_FAGEH_FAGE_MP stroke-width:0,fill:transparent
-            GE_FAGEH_FAGE_MP                                    -->         |一组对应的Spec/SpecHandle存在于| GE_FActiveGameplayEffect
+                    GE_FActiveGameplayEffectsContainer[FActiveGameplayEffectsContainer<br>管理GE<br>管理AttributeAggregator]
 
-            GE_FActiveGameplayEffectsContainer[FActiveGameplayEffectsContainer<br>管理GE<br>管理AttributeAggregator]
+                    GE_FGameplayEffectAttributeCaptureSpec[FGameplayEffectAttributeCaptureSpec<br>计算草稿和计算数据的绑定<br>向上提供给外部计算结果<br>向下捕获当前ActiveGEContainer下的Attribute对应Aggregator引用]
+                    GE_FGameplayEffectAttributeCaptureSpec              -.->        |Array| GE_FGameplayEffectAttributeCaptureSpec_Array
 
-            GE_FGameplayEffectAttributeCaptureSpec[FGameplayEffectAttributeCaptureSpec<br>计算草稿和计算数据的绑定<br>向上提供给外部计算结果<br>向下捕获当前ActiveGEContainer下的Attribute对应Aggregator引用]
-            GE_FGameplayEffectAttributeCaptureSpec              -.->        |Array| GE_FGameplayEffectAttributeCaptureSpec_Array
+                    GE_FGameplayEffectAttributeCaptureSpec_Array[FGameplayEffectAttributeCaptureSpec<br>Array]
+                    GE_FGameplayEffectAttributeCaptureSpec_Array@{ shape: processes }
+                    GE_FGameplayEffectAttributeCaptureSpec_Array        -->         GE_FGameplayEffectAttributeCaptureSpecContainer
 
-            GE_FGameplayEffectAttributeCaptureSpec_Array[FGameplayEffectAttributeCaptureSpec<br>Array]
-            GE_FGameplayEffectAttributeCaptureSpec_Array@{ shape: processes }
-            GE_FGameplayEffectAttributeCaptureSpec_Array        -->         GE_FGameplayEffectAttributeCaptureSpecContainer
+                    GE_FGameplayEffectAttributeCaptureSpecContainer[FGameplayEffectAttributeCaptureSpecContainer<br>拥有Source和Target的Attribute捕获引用]
+                    GE_FGameplayEffectAttributeCaptureSpecContainer     -->         |作为Attribute捕获集合<br>CapturedRelevantAttributes存在于| GE_FGameplayEffectSpec
+                end
+                GE_FActiveGameplayEffectsContainer                      -->         |ActiveGameplayEffects<br>存储当前运行中的DurationGE| ASC_UAbilitySystemComponent
+                GE_FGameplayEffectAttributeCaptureSpec                  -->         |通过ActiveGEContainer绑定| AG_FAggregatorRef
 
-            GE_FGameplayEffectAttributeCaptureSpecContainer[FGameplayEffectAttributeCaptureSpecContainer<br>拥有Source和Target的Attribute捕获引用]
-            GE_FGameplayEffectAttributeCaptureSpecContainer     -->         |作为Attribute捕获集合<br>CapturedRelevantAttributes存在于| GE_FGameplayEffectSpec
-        end
-        GE_FActiveGameplayEffectsContainer                      -->         |ActiveGameplayEffects<br>存储当前运行中的DurationGE| ASC_UAbilitySystemComponent
-        GE_FGameplayEffectAttributeCaptureSpec                  -->         |通过ActiveGEContainer绑定| AG_FAggregatorRef
+                subgraph Aggregator
+                    AG_FAggregatorMod[FAggregatorMod<br>修改器参数<br>Result = &lpar;Base + A&rpar; * B / C里面的ABC<br>Result = Override里面的Override]
+                    AG_FAggregatorMod                                   -.->        |Array| AG_FAggregatorMod_Array
 
-        subgraph Aggregator
-            AG_FAggregatorMod[FAggregatorMod<br>修改器参数<br>Result = &lpar;Base + A&rpar; * B / C里面的ABC<br>Result = Override里面的Override]
-            AG_FAggregatorMod                                   -.->        |Array| AG_FAggregatorMod_Array
+                    AG_FAggregatorMod_Array[FAggregatorMod<br>Array]
+                    AG_FAggregatorMod_Array@{ shape: processes }
+                    AG_FAggregatorMod_Array                             -->         |四个数组对应上面的ABC与Override| AG_FAggregatorModChannel
 
-            AG_FAggregatorMod_Array[FAggregatorMod<br>Array]
-            AG_FAggregatorMod_Array@{ shape: processes }
-            AG_FAggregatorMod_Array                             -->         |四个数组对应上面的ABC与Override| AG_FAggregatorModChannel
+                    AG_FAggregatorModChannel[FAggregatorModChannel<br>修改通道<br>保存了该通道的修改器集合]
+                    AG_FAggregatorModChannel                            -.->        |Array| AG_FAggregatorModChannel_Array
 
-            AG_FAggregatorModChannel[FAggregatorModChannel<br>修改通道<br>保存了该通道的修改器集合]
-            AG_FAggregatorModChannel                            -.->        |Array| AG_FAggregatorModChannel_Array
+                    AG_FAggregatorModChannel_Array[FAggregatorModChannel<br>Array]
+                    AG_FAggregatorModChannel_Array@{ shape: processes }
+                    AG_FAggregatorModChannel_Array                      -->         |被包裹| AG_FAggregatorModChannelContainer
 
-            AG_FAggregatorModChannel_Array[FAggregatorModChannel<br>Array]
-            AG_FAggregatorModChannel_Array@{ shape: processes }
-            AG_FAggregatorModChannel_Array                      -->         |被包裹| AG_FAggregatorModChannelContainer
+                    AG_FAggregatorModChannelContainer[FAggregatorModChannelContainer<br>修改通道集合，记录所有通道的修改器<br>通道由小到大依次计算Channel<br>Channel 0的结果是Channel 1的BaseValue]
+                    AG_FAggregatorModChannelContainer                   -->         |ModChannels<br>存储在AG_FAggregator中| AG_FAggregator
 
-            AG_FAggregatorModChannelContainer[FAggregatorModChannelContainer<br>修改通道集合，记录所有通道的修改器<br>通道由小到大依次计算Channel<br>Channel 0的结果是Channel 1的BaseValue]
-            AG_FAggregatorModChannelContainer                   -->         |ModChannels<br>存储在AG_FAggregator中| AG_FAggregator
+                    AG_FAggregator[FAggregator<br>GE配置的Modifier最终会变成这个数据<br>对同一个Attribute的修改会被聚合到这里]
+                    AG_FAggregator                                      -->         |ShaderPtr<br>被包裹| AG_FAggregatorRef
+                end
+                AG_FAggregatorRef[FAggregatorRef]                       -->         |TMap&lt;FGameplayAttribute, FAggregatorRef&gt;<br>作为Attribute映射的Aggregator| GE_FActiveGameplayEffectsContainer
 
-            AG_FAggregator[FAggregator<br>GE配置的Modifier最终会变成这个数据<br>对同一个Attribute的修改会被聚合到这里]
-            AG_FAggregator                                      -->         |ShaderPtr<br>被包裹| AG_FAggregatorRef
-        end
-        AG_FAggregatorRef[FAggregatorRef]                       -->         |TMap&lt;FGameplayAttribute, FAggregatorRef&gt;<br>作为Attribute映射的Aggregator| GE_FActiveGameplayEffectsContainer
+                subgraph AttributeSet
+                    AS_UAttributeSet[UAttributeSet]
+                    AS_FScalableFloat[FScalableFloat]
+                    AS_FGameplayAttribute[FGameplayAttribute<br>为了捕获这个值，编辑器上竟然遍历所有的Class<br>详见UpdatePropertyOptions<br>本质是选取Attribute的反射描述符<br>TODO]
+                    AS_FGameplayEffectModCallbackData[FGameplayEffectModCallbackData<br>TODO]
+                end
+                AS_FScalableFloat                                       -->         |作为ScalableFloatMagnitude| Calc_FGameplayEffectModifierMagnitude
 
-        subgraph AttributeSet
-            AS_UAttributeSet[UAttributeSet]
-            AS_FScalableFloat[FScalableFloat]
-            AS_FGameplayAttribute[TODO]
-        end
-        AS_FScalableFloat                                       -->         |作为ScalableFloatMagnitude| Calc_FGameplayEffectModifierMagnitude
+                subgraph Calculator
+                    Calc_UGameplayEffectCalculation[UGameplayEffectCalculation<br>计算器的父类<br>本质上是一个AttributeCapture]
+                    Calc_UGameplayEffectCalculation                     -->         |子类| Calc_UGameplayModMagnitudeCalculation
+                    Calc_UGameplayEffectCalculation                     -->         |子类| Calc_UGameplayEffectExecutionCalculation
 
-        subgraph Calculator
-            Calc_UGameplayEffectCalculation[UGameplayEffectCalculation<br>计算器的父类<br>本质上是一个AttributeCapture]
-            Calc_UGameplayEffectCalculation                     -->         |子类| Calc_UGameplayModMagnitudeCalculation
-            Calc_UGameplayEffectCalculation                     -->         |子类| Calc_UGameplayEffectExecutionCalculation
+                    Calc_UGameplayModMagnitudeCalculation[UGameplayModMagnitudeCalculation<br>服务于Modifier<br>]
+                    Calc_UGameplayModMagnitudeCalculation               -->         |CustomMagnitude内嵌的计算器| Calc_FCustomCalculationBasedFloat
 
-            Calc_UGameplayModMagnitudeCalculation[UGameplayModMagnitudeCalculation<br>服务于Modifier<br>]
-            Calc_UGameplayModMagnitudeCalculation               -->         |CustomMagnitude内嵌的计算器| Calc_FCustomCalculationBasedFloat
+                    Calc_UGameplayEffectExecutionCalculation[UGameplayEffectExecutionCalculation<br>服务于Executions<br>通常都是直接拿CDO进行计算]
+                    Calc_UGameplayEffectExecutionCalculation            -->         |其Class被包装<br>因为通常只用CDO| Calc_FGameplayEffectExecutionDefinition
 
-            Calc_UGameplayEffectExecutionCalculation[UGameplayEffectExecutionCalculation<br>服务于Executions<br>通常都是直接拿CDO进行计算]
-            Calc_UGameplayEffectExecutionCalculation            -->         |其Class被包装<br>因为通常只用CDO| Calc_FGameplayEffectExecutionDefinition
+                    Calc_FGameplayEffectExecutionDefinition[FGameplayEffectExecutionDefinition]
+                    Calc_FGameplayEffectExecutionDefinition             -.->        |Array| Calc_FGameplayEffectExecutionDefinition_Array
 
-            Calc_FGameplayEffectExecutionDefinition[FGameplayEffectExecutionDefinition]
-            Calc_FGameplayEffectExecutionDefinition             -.->        |Array| Calc_FGameplayEffectExecutionDefinition_Array
+                    Calc_FGameplayEffectExecutionDefinition_Array[FGameplayEffectExecutionDefinition<br>Array]
+                    Calc_FGameplayEffectExecutionDefinition_Array@{ shape: processes }
 
-            Calc_FGameplayEffectExecutionDefinition_Array[FGameplayEffectExecutionDefinition<br>Array]
-            Calc_FGameplayEffectExecutionDefinition_Array@{ shape: processes }
+                    Calc_FAttributeBasedFloat[FAttributeBasedFloat]
+                    Calc_FAttributeBasedFloat                           --->         |作为AttributeBasedMagnitude| Calc_FGameplayEffectModifierMagnitude
 
-            Calc_FAttributeBasedFloat[FAttributeBasedFloat]
-            Calc_FAttributeBasedFloat                           --->         |作为AttributeBasedMagnitude| Calc_FGameplayEffectModifierMagnitude
+                    Calc_FSetByCallerFloat[FSetByCallerFloat]
+                    Calc_FSetByCallerFloat                              ---->         |作为SetByCallerMagnitude| Calc_FGameplayEffectModifierMagnitude
 
-            Calc_FSetByCallerFloat[FSetByCallerFloat]
-            Calc_FSetByCallerFloat                              ---->         |作为SetByCallerMagnitude| Calc_FGameplayEffectModifierMagnitude
+                    Calc_FCustomCalculationBasedFloat[FCustomCalculationBasedFloat]
+                    Calc_FCustomCalculationBasedFloat                   -->         |作为CustomMagnitude| Calc_FGameplayEffectModifierMagnitude
 
-            Calc_FCustomCalculationBasedFloat[FCustomCalculationBasedFloat]
-            Calc_FCustomCalculationBasedFloat                   -->         |作为CustomMagnitude| Calc_FGameplayEffectModifierMagnitude
+                    Calc_FGameplayEffectModifierMagnitude[FGameplayEffectModifierMagnitude<br>Modifier的计算类]
+                    Calc_FGameplayEffectModifierMagnitude               -->         |被包裹| Calc_FGameplayModifierInfo
 
-            Calc_FGameplayEffectModifierMagnitude[FGameplayEffectModifierMagnitude<br>Modifier的计算类]
-            Calc_FGameplayEffectModifierMagnitude               -->         |被包裹| Calc_FGameplayModifierInfo
+                    Calc_FGameplayModifierInfo[FGameplayModifierInfo]
+                    Calc_FGameplayModifierInfo                          -.->        |Array| Calc_FGameplayModifierInfo_Array
 
-            Calc_FGameplayModifierInfo[FGameplayModifierInfo]
-            Calc_FGameplayModifierInfo                          -.->        |Array| Calc_FGameplayModifierInfo_Array
+                    Calc_FGameplayModifierInfo_Array[FGameplayModifierInfo<br>Array]
+                    Calc_FGameplayModifierInfo_Array@{ shape: processes }
+                    
+                    Calc_FGameplayEffectAttributeCaptureDefinition[FGameplayEffectAttributeCaptureDefinition<br>定义需要Capture谁的什么Attribute]
+                    Calc_FGameplayEffectAttributeCaptureDefinition      -.->        |Array| Calc_FGameplayEffectAttributeCaptureDefinition_Array
 
-            Calc_FGameplayModifierInfo_Array[FGameplayModifierInfo<br>Array]
-            Calc_FGameplayModifierInfo_Array@{ shape: processes }
-            
-            Calc_FGameplayEffectAttributeCaptureDefinition[FGameplayEffectAttributeCaptureDefinition<br>定义需要Capture谁的什么Attribute]
-            Calc_FGameplayEffectAttributeCaptureDefinition      -.->        |Array| Calc_FGameplayEffectAttributeCaptureDefinition_Array
+                    Calc_FGameplayEffectAttributeCaptureDefinition_Array[FGameplayEffectAttributeCaptureDefinition<br>Array]
+                    Calc_FGameplayEffectAttributeCaptureDefinition_Array@{ shape: processes }
+                    Calc_FGameplayEffectAttributeCaptureDefinition_Array-->         |被包裹| Calc_UGameplayEffectCalculation
+                    
+                end
+                %% Calc_FGameplayEffectModifierMagnitude                -->         |其中一种应用<br>SetSetByCallerMagnitude| GE_FGameplayEffectSpec
+                Calc_FGameplayModifierInfo_Array                        ---->       |作为Modifiers存在于| GE_UGameplayEffect
+                Calc_FGameplayEffectExecutionDefinition_Array           -->         |作为Excution存在于| GE_UGameplayEffect
+                Calc_FGameplayEffectAttributeCaptureDefinition          -->         |作为BackingDefinition存在于| GE_FGameplayEffectAttributeCaptureSpec
 
-            Calc_FGameplayEffectAttributeCaptureDefinition_Array[FGameplayEffectAttributeCaptureDefinition<br>Array]
-            Calc_FGameplayEffectAttributeCaptureDefinition_Array@{ shape: processes }
-            Calc_FGameplayEffectAttributeCaptureDefinition_Array-->         |被包裹| Calc_UGameplayEffectCalculation
-            
-        end
-        %% Calc_FGameplayEffectModifierMagnitude                -->         |其中一种应用<br>SetSetByCallerMagnitude| GE_FGameplayEffectSpec
-        Calc_FGameplayModifierInfo_Array                        ---->       |作为Modifiers存在于| GE_UGameplayEffect
-        Calc_FGameplayEffectExecutionDefinition_Array           -->         |作为Excution存在于| GE_UGameplayEffect
-        Calc_FGameplayEffectAttributeCaptureDefinition          -->         |作为BackingDefinition存在于| GE_FGameplayEffectAttributeCaptureSpec
+                subgraph GameplayTags
+                    GT_FGameplayTagContainer[FGameplayTagContainer]
+                end
 
-        subgraph GameplayTags
-            GT_FGameplayTagContainer[FGameplayTagContainer]
-        end
+                subgraph AbilitySystemComponent
+                    ASC_Tutorial[相关范式]
 
-        subgraph AbilitySystemComponent
-            ASC_Tutorial[相关范式]
+                    ASC_UAbilitySystemComponent[UAbilitySystemComponent]
+                end
 
-            ASC_UAbilitySystemComponent[UAbilitySystemComponent]
-        end
+                subgraph Ability/GameplayTask
+                    GTask_Tutorial[相关范式]
 
-        subgraph Ability/GameplayTask
-            GTask_Tutorial[相关范式]
+                    GTask_UGameplayTask[UGameplayTask<br>任务基类]
+                    GTask_UGameplayTask                                 -.->        |Array| GTask_UGameplayTask_Array
 
-            GTask_UGameplayTask[UGameplayTask<br>任务基类]
-            GTask_UGameplayTask                                 -.->        |Array| GTask_UGameplayTask_Array
-
-            GTask_UGameplayTask_Array[UGameplayTask<br>Array]
-            GTask_UGameplayTask_Array@{ shape: processes }
-        end
-        GTask_UGameplayTask_Array                               -->         |ActiveTasks<br>通过ASC<br>以执行中的任务存在于| GA_UGameplayAbility
-    `,
+                    GTask_UGameplayTask_Array[UGameplayTask<br>Array]
+                    GTask_UGameplayTask_Array@{ shape: processes }
+                end
+                GTask_UGameplayTask_Array                               -->         |ActiveTasks<br>通过ASC<br>以执行中的任务存在于| GA_UGameplayAbility
+            `
+        },
+        {
+            title: "示例流程图",
+            definition: `
+                graph LR
+                    A[开始] --> B{处理数据};
+                    B --> C[检查条件];
+                    C -- Yes --> D[执行操作A];
+                    C -- No --> E[执行操作B];
+                    D --> F[结束];
+                    E --> F;
+            `
+        }
+    ],
 
     // --- 在这里配置每个节点的详细信息 ---
+    // 注意: nodeDetails 是全局共享的, 所有图表的节点ID都从这里查找
     nodeDetails: {
+        'A': { title: '流程开始节点', variables: [{name: 'StartTime', type:'float', desc: '记录流程开始的时间'}] },
+        'B': { title: '数据处理' },
+        'C': { title: '条件判断' },
+        'D': { title: '操作A' },
+        'E': { title: '操作B' },
+        'F': { title: '流程结束' },
+
+        // --- 以下是原有的 GAS 节点详情 ---
         'GA_UGameplayAbility': {
             title: 'UGameplayAbility (技能模板)',
-            // --- 新的分类结构演示 ---
             variables: [
                 {
                     category: '【核心】身份与关系标签',
@@ -266,7 +292,7 @@ const CONFIG = {
                     ]
                 },
             ],
-            methods: [ // 方法部分仍使用平铺结构作为对比
+            methods: [
                 {
                     name: '(K2_)CanActivateAbility',
                     desc: '检查技能当前是否可被激活，蓝图(K2_)在Native函数最后被调用',
@@ -381,7 +407,18 @@ const CONFIG = {
         'GT_FGameplayTagContainer': { title: 'FGameplayTagContainer' },
         'AS_UAttributeSet': {
             title: 'UAttributeSet(核心属性)',
-
+            methods: [
+                {
+                    name: '【广播】PreGameplayEffectExecute',
+                    desc: '在GE应用前调用，可以用来做一些预处理。<br>详见FActiveGameplayEffectsContainer::InternalExecuteMod',
+                    signature: 'virtual bool PreGameplayEffectExecute(struct FGameplayEffectModCallbackData &Data) { return true; }'
+                },
+                {
+                    name: '【广播】PostGameplayEffectExecute',
+                    desc: '在GE应用后调用，可以用来做一些后处理。<br>其信息里面存在对Attribute的操作，以及Attribute成员的反射描述符。<br>调用详见FActiveGameplayEffectsContainer::InternalExecuteMod。',
+                    signature: 'virtual void PostGameplayEffectExecute(const struct FGameplayEffectModCallbackData &Data) {}'
+                }
+            ]
         },
 
         'GE_UGameplayEffect':
@@ -439,17 +476,25 @@ const CONFIG = {
                         { name: 'CapturedRelevantAttributes', type: 'FGameplayEffectAttributeCaptureSpecContainer', desc: '当前Spec捕获的Attribute引用集合' },
                         { name: 'CapturedSourceTags', type: 'FGameplayTagContainer', desc: '捕获的SourceTags，在RecaptureSourceActorTags捕获' },
                         { name: 'CapturedTargetTags', type: 'FGameplayTagContainer', desc: '捕获的TargetTags' },
+                        { name: 'Modifiers', type: 'TArray&lt;FModifierSpec&gt;', desc: '当前计算完毕的Modifier的值，存在这里面，和Def->Modifiers一一对应。' },
                     ]
                 }
             ],
             methods: [
                 {
                     name: '【核心】Initialize',
-                    desc: '初始化当前的数据包，包括了GE模板(Def)、Context、Level、整理所有捕获Attribute、捕获SourceTarget'
+                    desc: '通常在构造时调用。<br>初始化当前的数据包，包括了GE模板(Def)、Context、Level、整理所有捕获Attribute、捕获SourceTarget。',
+                    signature: 'void Initialize(const UGameplayEffect* InDef, const FGameplayEffectContextHandle& InEffectContext, float Level = FGameplayEffectConstants::INVALID_LEVEL);'
                 },
                 {
                     name: 'RecaptureSourceActorTags',
-                    desc: '原生UE虽然将ActorTag和SpecTag都作为引用传进去，但是SpecTag没有修改。会将'
+                    desc: '从GEContext里面找Tag。<br>原生UE虽然将ActorTag和SpecTag都作为引用传进去，但是SpecTag没有修改。',
+                    signature: 'void RecaptureSourceActorTags();'
+                },
+                {
+                    name: 'CalculateModifierMagnitudes',
+                    desc: '计算所有Def(GE模板)的Modifier的值，结果保存在自己的Modifiers里面',
+                    signature: 'void CalculateModifierMagnitudes();'
                 },
                 {
                     name: 'AttemptCalculateDurationFromDef',
@@ -481,6 +526,16 @@ const CONFIG = {
                     name: '【核心】AddActiveGameplayEffectGrantedTagsAndModifiers',
                     desc: '将GE的多种Tag((Dynamic)GrantedTags/BlockedAbilityTags)添加到ASC中，并且将GE的Modifiers添加到Aggregator中。',
                     signature: 'void AddActiveGameplayEffectGrantedTagsAndModifiers(FActiveGameplayEffect& Effect, bool bInvokeGameplayCueEvents);'
+                },
+                {
+                    name: '【设计有失偏颇】ExecuteActiveEffectsFrom',
+                    desc: '执行GESpec，依次执行Modifier，Execution，Cue。<br>这就是GAS我觉得框架设计有点奇怪的地方，自己是Container，却需要输入一个Spec来执行。我最不能理解的就是这个函数上层调用都是从Handle开始访问的，解开Handle的访问我觉得是很变态的一件事情，或者做一个Context来维护上下文关系也行。<br>更多的还有设计了一个迭代器FActiveGameplayEffectIterator，别的地方还是直接for GameplayEffects_Internal。',
+                    signature: 'void ExecuteActiveEffectsFrom(FGameplayEffectSpec &Spec, FPredictionKey PredictionKey = FPredictionKey() );'
+                },
+                {
+                    name: '【Attribute相关】InternalExecuteMod',
+                    desc: '将算好的Modifier应用到对应的Attribute上，其中的修改被AS的PreGameplayEffectExecute和PostGameplayEffectExecute包夹。',
+                    signature: 'bool InternalExecuteMod(FGameplayEffectSpec& Spec, FGameplayModifierEvaluatedData& ModEvalData);'
                 },
                 {
                     name: '【Capture相关】CaptureAttributeForGameplayEffect',
