@@ -233,8 +233,8 @@ const CONFIG = {
                     items: [
                         { name: 'ActivationRequiredTags', type: 'FGameplayTagContainer', desc: '【前置条件】问头头(ASC)说，我要的人都来了么？没有都来的话(HasAll)，那我也不来了！' },
                         { name: 'ActivationBlockedTags', type: 'FGameplayTagContainer', desc: '【前置条件】问头头(ASC)说，我不想见的人来了么？如果来了其中任何一个人的话(HasAny)，那我也不来了！' },
-                        { name: '(Source/Target)(Required/Blocked)Tags', type: 'FGameplayTagContainer', desc: '【前置条件】这四个和上面类似，只是判断的对象不一样。'},
-                        { name: 'AbilityTriggers', type: 'TArray&lt;FAbilityTriggerData&gt;', desc: '【等待戈多，数据消耗者】头头(ASC)把GA加入名单(OnGiveAbility)的时候，就会统计他的诉求，等我要的人来了，再叫我！Tips:可以消耗AnimNotify生产的Tag'},
+                        { name: '(Source/Target)(Required/Blocked)Tags', type: 'FGameplayTagContainer', desc: '【前置条件】这四个和上面类似，只是判断的对象不一样。' },
+                        { name: 'AbilityTriggers', type: 'TArray&lt;FAbilityTriggerData&gt;', desc: '【等待戈多，数据消耗者】头头(ASC)把GA加入名单(OnGiveAbility)的时候，就会统计他的诉求，等我要的人来了，再叫我！Tips:可以消耗AnimNotify生产的Tag' },
                     ]
                 },
                 {
@@ -242,27 +242,27 @@ const CONFIG = {
                     items: [
                         { name: 'InstancingPolicy', type: 'EGameplayAbilityInstancing::Type', desc: '【实例化策略】决定当前的技能能否在Spec里面存在实例，以及实例化的时机，如果选择不需要实例化，那么永远都是使用的CDO。还可以选择PerActor和PerExecution实例化策略，如果GA内部存在需要记录的数据，并且每个Instance不一样，那么就需要考虑这个策略。' },
                         { name: 'ReplicationPolicy', type: 'EGameplayAbilityReplicationPolicy::Type', desc: '【同步策略】决定技能的执行和效果如何在网络中同步。' },
-                        { name: 'NetExecutionPolicy', type: 'EGameplayAbilityNetExecutionPolicy::Type', desc: '【执行策略】根据策略看本地跑还是服务器跑、本地'}
+                        { name: 'NetExecutionPolicy', type: 'EGameplayAbilityNetExecutionPolicy::Type', desc: '【执行策略】根据策略看本地跑还是服务器跑、本地' }
                     ]
                 },
                 {
                     category: '【Task相关】',
                     items: [
-                        { name: 'ActiveTasks', type: 'TArray&lt;UGameplayTask*&gt;', desc: '激活的任务集合'}
+                        { name: 'ActiveTasks', type: 'TArray&lt;UGameplayTask*&gt;', desc: '激活的任务集合' }
                     ]
                 },
                 {
                     category: '【锁相关】',
                     items: [
-                        { name: 'ScopeLockCount', type: 'int8', desc: '专门服务于函数ApplyGameplayEffectSpecToTarget，设计上是防止在迭代的时候，修改ASC里面的数据，这里对GA和ASC都会加上锁'},
-                        { name: 'WaitingToExecute', type: 'TArray&lt;FPostLockDelegate&gt;', desc: '在上锁的时候，缓存执行的Delegate，后续再执行'}
+                        { name: 'ScopeLockCount', type: 'int8', desc: '专门服务于函数ApplyGameplayEffectSpecToTarget，设计上是防止在迭代的时候，修改ASC里面的数据，这里对GA和ASC都会加上锁' },
+                        { name: 'WaitingToExecute', type: 'TArray&lt;FPostLockDelegate&gt;', desc: '在上锁的时候，缓存执行的Delegate，后续再执行' }
                     ]
                 },
                 {
                     category: '【不常用】资源关联GE',
                     items: [
-                         { name: 'CooldownGameplayEffectClass', type: 'TSubclassOf&lt;UGameplayEffect&gt;', desc: '【感觉没人用啊】技能冷却所使用的GE模板。' },
-                         { name: 'CostGameplayEffectClass', type: 'TSubclassOf&lt;UGameplayEffect&gt;', desc: '【感觉没人用啊】技能消耗所使用的GE模板。' }
+                        { name: 'CooldownGameplayEffectClass', type: 'TSubclassOf&lt;UGameplayEffect&gt;', desc: '【感觉没人用啊】技能冷却所使用的GE模板。' },
+                        { name: 'CostGameplayEffectClass', type: 'TSubclassOf&lt;UGameplayEffect&gt;', desc: '【感觉没人用啊】技能消耗所使用的GE模板。' }
                     ]
                 },
             ],
@@ -335,14 +335,29 @@ const CONFIG = {
             ],
             methods: [
                 {
+                    name: 'InitializeComponent',
+                    desc: '会初始化ActorInfo，并且通过GetObjectsWithOuter去强行初始化Owner身上的AttributeSet，不是很优雅。注意这个函数是UActorComponent的虚函数，会被AActor::PostSpawnInitialize调用。',
+                    signature: 'virtual void InitializeComponent() override;'
+                },
+                {
+                    name: 'InitAbilityActorInfo',
+                    desc: '初始化AbilityActorInfo，设置OwnerActor和AvatarActor，其中OwnerActor更贴近于数据，Avatar更贴近于表现，通常两者都可以是Character。',
+                    signature: 'virtual void InitAbilityActorInfo(AActor* InOwnerActor, AActor* InAvatarActor);'
+                },
+                {
                     name: 'TryActivateAbility',
                     desc: '尝试根据Handle激活一个技能。',
                     signature: 'bool TryActivateAbility(FGameplayAbilitySpecHandle AbilityToActivate, bool bAllowRemoteActivation = true)'
                 },
                 {
                     name: 'ApplyGameplayEffectToSelf',
-                    desc: '对自己应用一个GE。',
+                    desc: '对自己应用一个GE。如果这个GE不是立即执行，那么就会被放进ActiveGEContainer中，否则直接执行ExecuteGameplayEffect',
                     signature: 'FActiveGameplayEffectHandle ApplyGameplayEffectToSelf(const UGameplayEffect* GameplayEffect, float Level, const FGameplayEffectContextHandle& EffectContext, const FPredictionKey& PredictionKey = FPredictionKey())'
+                },
+                {
+                    name: 'ExecuteGameplayEffect',
+                    desc: '立即执行一个GE，通常是Instant的GE。',
+                    signature: 'void ExecuteGameplayEffect(FGameplayEffectSpec &Spec, FPredictionKey PredictionKey);'
                 },
                 {
                     name: 'AddLooseGameplayTag',
@@ -364,7 +379,10 @@ const CONFIG = {
         'GA_FGameplayAbilitySpecHandle': { title: 'FGameplayAbilitySpecHandle' },
         'GA_FGameplayAbilitySpecContainer': { title: 'FGameplayAbilitySpecContainer' },
         'GT_FGameplayTagContainer': { title: 'FGameplayTagContainer' },
-        'AS': { title: 'AttributeSet' },
+        'AS_UAttributeSet': {
+            title: 'UAttributeSet(核心属性)',
+
+        },
 
         'GE_UGameplayEffect':
         {
@@ -389,10 +407,10 @@ const CONFIG = {
                 }
             ],
             methods: [
-                
+
             ]
         },
-        'GE_FGameplayEffectSpec' : 
+        'GE_FGameplayEffectSpec':
         {
             title: 'FGameplayEffectSpec',
             variables: [
@@ -450,7 +468,7 @@ const CONFIG = {
                 },
             ]
         },
-        'GE_FActiveGameplayEffectsContainer': 
+        'GE_FActiveGameplayEffectsContainer':
         {
             title: 'FActiveGameplayEffectsContainer',
             methods: [
@@ -476,7 +494,7 @@ const CONFIG = {
                 }
             ]
         },
-        'GE_FGameplayEffectContext': 
+        'GE_FGameplayEffectContext':
         {
             title: 'FGameplayEffectContext',
             variables: [
@@ -505,11 +523,11 @@ const CONFIG = {
         {
             title: 'FGameplayEffectAttributeCaptureSpec',
             variables: [
-                { name: 'BackingDefinition', type: 'FGameplayEffectAttributeCaptureDefinition', desc: '捕获的Attribute的定义'},
-                { name: 'AttributeAggregator', type: 'FAggregatorRef', desc: 'Attribute对应的Aggregator引用'}
+                { name: 'BackingDefinition', type: 'FGameplayEffectAttributeCaptureDefinition', desc: '捕获的Attribute的定义' },
+                { name: 'AttributeAggregator', type: 'FAggregatorRef', desc: 'Attribute对应的Aggregator引用' }
             ],
             methods: [
-                { 
+                {
                     name: 'AttemptCalculateAttributeMagnitudeUpToChannel',
                     desc: '计算当前Aggregator在Channel上的结果值',
                     signature: 'bool AttemptCalculateAttributeMagnitudeUpToChannel(const FAggregatorEvaluateParameters& InEvalParams, EGameplayModEvaluationChannel FinalChannel, OUT float& OutMagnitude) const;'
@@ -520,8 +538,8 @@ const CONFIG = {
         {
             title: 'FGameplayEffectAttributeCaptureSpecContainer',
             variables: [
-                { name: 'SourceAttributes', type: 'TArray&lt;FGameplayEffectAttributeCaptureSpec&gt;', desc: '捕获的SourceAttribute'},
-                { name: 'TargetAttributes', type: 'TArray&lt;FGameplayEffectAttributeCaptureSpec&gt;', desc: '捕获的TargetAttribute'}
+                { name: 'SourceAttributes', type: 'TArray&lt;FGameplayEffectAttributeCaptureSpec&gt;', desc: '捕获的SourceAttribute' },
+                { name: 'TargetAttributes', type: 'TArray&lt;FGameplayEffectAttributeCaptureSpec&gt;', desc: '捕获的TargetAttribute' }
             ],
             methods: [
                 {
@@ -540,7 +558,7 @@ const CONFIG = {
         {
             title: 'FGameplayEffectContextHandle',
             variables: [
-                { name: 'Data', type: 'TSharedPtr&lt;FGameplayEffectContext&gt;', desc: '给Context包裹了一层，不知道为什么叫Handle。'}
+                { name: 'Data', type: 'TSharedPtr&lt;FGameplayEffectContext&gt;', desc: '给Context包裹了一层，不知道为什么叫Handle。' }
             ]
         },
         'GE_FActiveGameplayEffectHandle':
@@ -568,8 +586,8 @@ const CONFIG = {
         {
             title: 'FAggregator',
             variables: [
-                { name: 'BaseValue', type:'float', desc: '基础值'},
-                { name: 'ModChannels', type:'FAggregatorModChannelContainer', desc: '修改通道集合，前一个通道的结果会成为后一个通道的初始值。'}
+                { name: 'BaseValue', type: 'float', desc: '基础值' },
+                { name: 'ModChannels', type: 'FAggregatorModChannelContainer', desc: '修改通道集合，前一个通道的结果会成为后一个通道的初始值。' }
             ],
             methods: [
                 {
@@ -644,18 +662,35 @@ const CONFIG = {
                 }
             ]
         },
-        'Calc_FGameplayEffectModifierMagnitude' :
+        'Calc_FGameplayEffectModifierMagnitude':
         {
             title: 'FGameplayEffectModifierMagnitude',
             variables: [
-                { name: 'MagnitudeCalculationType', type: 'EGameplayEffectMagnitudeCalculation', desc: '当前Magnitude类型四种类型，ScalableFloat/AttributeBased/CustomCalculationClass/SetByCaller'},
-                { name: 'ScalableFloatMagnitude', type: 'FScalableFloat', desc: '当前Magnitude使用浮点数计算'},
-                { name: 'AttributeBasedMagnitude', type: 'FAttributeBasedFloat', desc: '当前Magnitude基于AttributeSet的捕获结果计算'},
-                { name: 'CustomMagnitude', type: 'FCustomCalculationBasedFloat', desc: '当前Magnitude直接使用CalculationClass进行计算'},
-                { name: 'SetByCallerMagnitude', type: 'FSetByCallerFloat', desc: '当前Magnitude使用GESpec构造时SetByCaller的预设结果，具体用法可以参考Test_SetByCallerStackingDuration'},
+                { name: 'MagnitudeCalculationType', type: 'EGameplayEffectMagnitudeCalculation', desc: '当前Magnitude类型四种类型，ScalableFloat/AttributeBased/CustomCalculationClass/SetByCaller' },
+                { name: 'ScalableFloatMagnitude', type: 'FScalableFloat', desc: '当前Magnitude使用浮点数计算' },
+                { name: 'AttributeBasedMagnitude', type: 'FAttributeBasedFloat', desc: '当前Magnitude基于AttributeSet的捕获结果计算' },
+                { name: 'CustomMagnitude', type: 'FCustomCalculationBasedFloat', desc: '当前Magnitude直接使用CalculationClass进行计算' },
+                { name: 'SetByCallerMagnitude', type: 'FSetByCallerFloat', desc: '当前Magnitude使用GESpec构造时SetByCaller的预设结果，具体用法可以参考Test_SetByCallerStackingDuration' },
+            ],
+            methods: [
+                {
+                    name: 'CanCalculateMagnitude',
+                    desc: '判断当前的Magnitude能否被计算',
+                    signature: 'bool CanCalculateMagnitude(const FGameplayEffectSpec& Spec) const;'
+                },
+                {
+                    name: 'AttemptCalculateMagnitude',
+                    desc: '尝试计算当前的Magnitude，会根据CanCalculateMagnitude的结果进行计算，这个Can的结果会返回。',
+                    signature: 'bool AttemptCalculateMagnitude(const FGameplayEffectSpec& InRelevantSpec, OUT float& OutCalculatedMagnitude, bool WarnIfSetByCallerFail=true, float DefaultSetbyCaller=0.f) const;'
+                },
+                {
+                    name: 'AttemptRecalculateMagnitudeFromDependentAggregatorChange',
+                    desc: '【Aggregator系统】当Attribute的Aggregator变化时，尝试重新计算当前的Magnitude。',
+                    signature: 'bool AttemptRecalculateMagnitudeFromDependentAggregatorChange(const FGameplayEffectSpec& InRelevantSpec, OUT float& OutCalculatedMagnitude, const FAggregator* ChangedAggregator) const;'
+                }
             ]
         },
-        'Calc_UGameplayEffectExecutionCalculation' :
+        'Calc_UGameplayEffectExecutionCalculation':
         {
             title: 'UGameplayEffectExecutionCalculation',
             methods: [
@@ -666,31 +701,31 @@ const CONFIG = {
                 }
             ]
         },
-        'Calc_UGameplayEffectCalculation' :
+        'Calc_UGameplayEffectCalculation':
         {
             title: 'UGameplayEffectCalculation',
             variables: [
-                { name: 'RelevantAttributesToCapture', type: 'TArray&lt;FGameplayEffectAttributeCaptureDefinition&gt;', desc: '捕获'}
+                { name: 'RelevantAttributesToCapture', type: 'TArray&lt;FGameplayEffectAttributeCaptureDefinition&gt;', desc: '捕获' }
             ],
         },
-        'Calc_FGameplayEffectAttributeCaptureDefinition' :
+        'Calc_FGameplayEffectAttributeCaptureDefinition':
         {
             title: 'FGameplayEffectAttributeCaptureDefinition',
             variables: [
-                { name: 'AttributeToCapture', type: 'FGameplayAttribute', desc: 'Gameplay attribute to capture'},
-                { name: 'AttributeSource', type: 'EGameplayEffectAttributeCaptureSource', desc: 'Source of the gameplay attribute'},
-                { name: 'bSnapshot', type: 'bool', desc: '这个Snapshot最开始挺难理解的，可以用一个比方，我磕了一瓶攻击药，敌方磕了一瓶防御药，每瓶药的duration都是3s，立马我发射一个寒冰箭，飞行时间是4s，进行伤害计算的时候，需要计算到我的攻击药，但是不能计算到敌方的防御药，也就是我发起攻击是snapshot，敌方防守是非snapshot。<br>所以通常是技能的发起者需要snapshot，技能的接受者不需要snapshot。'},
+                { name: 'AttributeToCapture', type: 'FGameplayAttribute', desc: 'Gameplay attribute to capture' },
+                { name: 'AttributeSource', type: 'EGameplayEffectAttributeCaptureSource', desc: 'Source of the gameplay attribute' },
+                { name: 'bSnapshot', type: 'bool', desc: '这个Snapshot最开始挺难理解的，可以用一个比方，我磕了一瓶攻击药，敌方磕了一瓶防御药，每瓶药的duration都是3s，立马我发射一个寒冰箭，飞行时间是4s，进行伤害计算的时候，需要计算到我的攻击药，但是不能计算到敌方的防御药，也就是我发起攻击是snapshot，敌方防守是非snapshot。<br>所以通常是技能的发起者需要snapshot，技能的接受者不需要snapshot。' },
             ],
         },
-        'Calc_FGameplayModifierInfo' :
+        'Calc_FGameplayModifierInfo':
         {
-            title: 'FGameplayModifierInfo',  
+            title: 'FGameplayModifierInfo',
         },
-        'Calc_FSetByCallerFloat' :
+        'Calc_FSetByCallerFloat':
         {
             title: 'FSetByCallerFloat'
         },
-        'Calc_FAttributeBasedFloat' :
+        'Calc_FAttributeBasedFloat':
         {
             title: 'FAttributeBasedFloat',
             methods: [
@@ -700,11 +735,11 @@ const CONFIG = {
                 }
             ]
         },
-        'Calc_FCustomCalculationBasedFloat' :
+        'Calc_FCustomCalculationBasedFloat':
         {
             title: 'FCustomCalculationBasedFloat'
         },
-        'GA_Tutorial' :
+        'GA_Tutorial':
         {
             title: 'GA相关范式',
             methods: [
@@ -738,7 +773,7 @@ const CONFIG = {
                 }
             ]
         },
-        'GE_Tutorial' :
+        'GE_Tutorial':
         {
             title: 'GE相关范式',
             methods: [
@@ -772,7 +807,7 @@ const CONFIG = {
                 }
             ]
         },
-        'ASC_Tutorial' :
+        'ASC_Tutorial':
         {
             title: 'ASC (组件) 相关范式',
             methods: [
@@ -806,7 +841,7 @@ const CONFIG = {
                 }
             ]
         },
-        'GTask_Tutorial' :
+        'GTask_Tutorial':
         {
             title: 'AbilityTask (技能任务) 范式',
             methods: [
