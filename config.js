@@ -18,7 +18,7 @@ const CONFIG = {
         copySuccessToast: "函数签名已复制!",
         copyFailToast: "复制失败"
     },
-    
+
     // --- 图表定义 (支持多个) ---
     diagrams: [
         {
@@ -49,7 +49,7 @@ const CONFIG = {
                     GA_FGameplayAbilitySpecContainer[FGameplayAbilitySpecContainer]
 
                     GA_FGameplayAbilitySpecDef[FGameplayAbilitySpecDef]
-                    GA_FGameplayAbilitySpecDef                          --->         |带上GEHandle可以生成| GA_FGameplayAbilitySpec
+                    GA_FGameplayAbilitySpecDef                          ---->        |带上GEHandle可以生成| GA_FGameplayAbilitySpec
                     GA_FGameplayAbilitySpecDef                          -.->         |带上GEHandle可以生成| GA_FGameplayAbilitySpecDef_Array
 
                     GA_FGameplayAbilitySpecDef_Array[FGameplayAbilitySpecDef<br>Array]
@@ -117,6 +117,8 @@ const CONFIG = {
                 GE_FGameplayEffectAttributeCaptureSpec                  -->         |通过ActiveGEContainer绑定| AG_FAggregatorRef
 
                 subgraph Aggregator
+                    AG_Tutorial[相关范式]
+
                     AG_FAggregatorMod[FAggregatorMod<br>修改器参数<br>Result = &lpar;Base + A&rpar; * B / C里面的ABC<br>Result = Override里面的Override]
                     AG_FAggregatorMod                                   -.->        |Array| AG_FAggregatorMod_Array
 
@@ -141,11 +143,22 @@ const CONFIG = {
 
                 subgraph AttributeSet
                     AS_UAttributeSet[UAttributeSet]
+
                     AS_FScalableFloat[FScalableFloat]
+
                     AS_FGameplayAttribute[FGameplayAttribute<br>为了捕获这个值，编辑器上竟然遍历所有的Class<br>详见UpdatePropertyOptions<br>本质是选取Attribute的反射描述符<br>TODO]
-                    AS_FGameplayEffectModCallbackData[FGameplayEffectModCallbackData<br>TODO]
+                    AS_FGameplayAttribute                               -->         |作为Attribute描述符存在于| AS_FGameplayModifierEvaluatedData
+
+                    AS_FGameplayModifierEvaluatedData[FGameplayModifierEvaluatedData<br>描述了对Attribute的一次操作<br>包括了Attribute描述，Op，Magnitude]
+                    AS_FGameplayModifierEvaluatedData                   -->         |作为操作信息EvaluatedData<br>存在于| AS_FGameplayEffectModCallbackData
+
+                    AS_FGameplayEffectModCallbackData[FGameplayEffectModCallbackData<br>描述了因为某个EffectSpec对某个ASC的某次Attribute修改]
+                    AS_FGameplayEffectModCallbackData                   -->         |&lpar;Pre/Post&rpar;GEExecute广播| AS_UAttributeSet
+
+                    AS_FGameplayAttributeData[FGameplayAttributeData<br>TODO]
                 end
                 AS_FScalableFloat                                       -->         |作为ScalableFloatMagnitude| Calc_FGameplayEffectModifierMagnitude
+                AS_FGameplayAttribute                                   -->         |作为捕获设定的描述符存在于| Calc_FGameplayEffectAttributeCaptureDefinition
 
                 subgraph Calculator
                     Calc_UGameplayEffectCalculation[UGameplayEffectCalculation<br>计算器的父类<br>本质上是一个AttributeCapture]
@@ -218,15 +231,33 @@ const CONFIG = {
             `
         },
         {
-            title: "示例流程图",
+            title: "Attribute修改流程",
             definition: `
-                graph LR
-                    A[开始] --> B{处理数据};
-                    B --> C[检查条件];
-                    C -- Yes --> D[执行操作A];
-                    C -- No --> E[执行操作B];
-                    D --> F[结束];
-                    E --> F;
+                graph TD
+
+                Attribute修改流程_A[ApplyGESpec阶段]
+
+                Attribute修改流程_B[某一次修改BaseValue]
+                Attribute修改流程_B -->|如果这个Attribute<br>没有对应的Aggregator| Attribute修改流程_C
+                Attribute修改流程_B -->|如果这个Attribute<br>有对应的Aggregator| Attribute修改流程_D
+                
+                Attribute修改流程_C[直接修改BaseValue]
+
+                Attribute修改流程_D[修改Aggregator<br>的BaseValue]
+                Attribute修改流程_D --> Attribute修改流程_E
+
+                Attribute修改流程_E[Aggregator标记为Dirty]
+                Attribute修改流程_E -->|广播OnDirty| Attribute修改流程_F
+                Attribute修改流程_E -->|通知相关的GEHandle| Attribute修改流程_G
+
+                Attribute修改流程_F[Aggregator更新CurrentValue]
+                
+                Attribute修改流程_G[GE收到引用，更新自己的Modifier引用值<br>自己重新计算一遍当前Modifier的结果]
+                Attribute修改流程_G --> Attribute修改流程_H
+
+                Attribute修改流程_H[GE作用的Aggregator删掉所有当前GE的Modifier<br>再按照之前计算的结果添加回到Aggregator<br>注意Aggregator里面每一个Mod都对应着某个GESpec里的某个Modifier]
+
+                Attribute修改流程_H -->|GE作用的Aggregator又被修改了| Attribute修改流程_E
             `
         }
     ],
@@ -234,7 +265,7 @@ const CONFIG = {
     // --- 在这里配置每个节点的详细信息 ---
     // 注意: nodeDetails 是全局共享的, 所有图表的节点ID都从这里查找
     nodeDetails: {
-        'A': { title: '流程开始节点', variables: [{name: 'StartTime', type:'float', desc: '记录流程开始的时间'}] },
+        'A': { title: '流程开始节点', variables: [{ name: 'StartTime', type: 'float', desc: '记录流程开始的时间' }] },
         'B': { title: '数据处理' },
         'C': { title: '条件判断' },
         'D': { title: '操作A' },
@@ -409,18 +440,44 @@ const CONFIG = {
             title: 'UAttributeSet(核心属性)',
             methods: [
                 {
-                    name: '【广播】PreGameplayEffectExecute',
-                    desc: '在GE应用前调用，可以用来做一些预处理。<br>详见FActiveGameplayEffectsContainer::InternalExecuteMod',
+                    name: '【广播：GE】PreGameplayEffectExecute',
+                    desc: '在GE应用前调用，可以用来做一些预处理和Check。<br>详见FActiveGameplayEffectsContainer::InternalExecuteMod。',
                     signature: 'virtual bool PreGameplayEffectExecute(struct FGameplayEffectModCallbackData &Data) { return true; }'
                 },
                 {
-                    name: '【广播】PostGameplayEffectExecute',
+                    name: '【广播：GE】PostGameplayEffectExecute',
                     desc: '在GE应用后调用，可以用来做一些后处理。<br>其信息里面存在对Attribute的操作，以及Attribute成员的反射描述符。<br>调用详见FActiveGameplayEffectsContainer::InternalExecuteMod。',
                     signature: 'virtual void PostGameplayEffectExecute(const struct FGameplayEffectModCallbackData &Data) {}'
+                },
+                {
+                    name: '【广播：BaseValue】PreAttributeBaseChange',
+                    desc: 'BaseValue设置前，可以用来做一些预处理。<br>详见FActiveGameplayEffectsContainer::SetAttributeBaseValue。',
+                    signature: 'virtual void PreAttributeBaseChange(const FGameplayAttribute& Attribute, float& NewValue) const { }'
+                },
+                {
+                    name: '【广播：BaseValue】PostAttributeBaseChange',
+                    desc: 'BaseValue设置后，可以用来做一些后处理。<br>调用详见FActiveGameplayEffectsContainer::SetAttributeBaseValue。',
+                    signature: 'virtual void PostAttributeBaseChange(const FGameplayAttribute& Attribute, float OldValue, float NewValue) const { }'
+                },
+                {
+                    name: '【广播：CurrentValue】PreAttributeChange',
+                    desc: 'CurrentValue设置前，可以用来做一些预处理。<br>详见FActiveGameplayEffectsContainer::SetNumericValueChecked。',
+                    signature: 'virtual void PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue) { }'
+                },
+                {
+                    name: '【广播：CurrentValue】PostAttributeChange',
+                    desc: 'CurrentValue设置后，可以用来做一些后处理。<br>调用详见FActiveGameplayEffectsContainer::SetNumericValueChecked。',
+                    signature: 'virtual void PostAttributeChange(const FGameplayAttribute& Attribute, float OldValue, float NewValue) { }'
                 }
             ]
         },
-
+        'AS_FGameplayAttributeData': {
+            title: 'FGameplayAttributeData',
+            variables: [
+                { name: 'BaseValue', type: 'float', desc: '基础值，通常先被修改' },
+                { name: 'CurrentValue', type: 'float', desc: '当前值，通常后被连带修改' },
+            ]
+        },
         'GE_UGameplayEffect':
         {
             title: 'UGameplayEffect',
@@ -923,6 +980,29 @@ const CONFIG = {
                 {
                     name: '自定义Task：扩展GA的能力',
                     desc: '当内置Task不满足需求时，你可以创建自己的Task子类。这是扩展GAS能力最直接、最强大的方式。<br><b>自定义Task的步骤：</b><br>1. 创建一个继承自`UAbilityTask`的C++类。<br>2. 声明输出委托（如`FGenericGameplayTaskDelegate OnSuccess;`）。<br>3. 创建一个静态的工厂函数（如`static UMyTask* MyAwesomeTask(...)`），这是蓝图中创建此Task的节点。<br>4. 实现`Activate()`函数，在这里启动你的异步逻辑。<br>5. 在你的异步逻辑完成时，广播对应的委托。'
+                }
+            ]
+        },
+        'AG_Tutorial':
+        {
+            title: 'Aggregator范式',
+            methods: [
+                {
+                    name: '功能',
+                    desc: '本质上是辅助GE，来计算Attribute的工具，这个工具起到了多个作用。更加本质点，他其实是Attribute的代理，扩展了处理Buff这种功能。<br><ul>\
+                    <li>在GESpec Capture的时候，创造捕获Attribute的Aggregator。Aggregator是一个Attribute+多组Modifier</li>\
+                    <li>Aggregator相当于Attribute的扩展计算器，不直接修改BaseValue，而是基于BaseValue计算出CurrentValue。</li>\
+                    <li>Aggregator在BaseValue被修改之后，标记Dirty，此时需要重新计算CurrentValue，部分运行时FScopedAggregatorOnDirtyBatch还会辅助这个Dirty广播过程。</li>\
+                    <li>通常Aggregator机制，在GE没有Period的时候生效，其Modifier会放入Aggregator。</li>\
+                    <li>捕获的Attribute，如果开启了Snapshot，相当于一个副本，这个副本不再与原始Attribute关联，也就是BaseValue修改的时候也不会影响结果了</li></ul>',
+                },
+                {
+                    name: '使用',
+                    desc: 'Aggregator系统更像一个Buff,如果我们要创建一个，玩家攻击力提升20%的Buff，时长10s，假设攻击力Attribute为Strength<ul>\
+                    <li>创建GE，Duration为10s，Period为0<li>\
+                    <li>增加修改Modifier，类型为AttributeBase，并且BackingAttribute就是Strength，设置非Snapshot。</li>\
+                    <li>中途即使修改Strength的BaseValue，Strength会根据Attribute找到自己的Aggregator，并且广播Dirty</li>\
+                    <li>此时Aggregator重新计算出正确的值。如果BaseValue增加了10，那么对应的CurrentValue会增加12</li></ul>'
                 }
             ]
         }
