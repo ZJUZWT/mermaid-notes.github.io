@@ -1108,8 +1108,12 @@ const CONFIG = {
             title: 'Aggregator范式',
             methods: [
                 {
+                    name: 'Channel计算官方文档，这个将Aggregator和Channel的计算过程描绘的很清晰。',
+                    desc: 'https://dev.epicgames.com/community/learning/tutorials/JG2a/unreal-engine-gameplay-ability-system-modifier-evaluation-channels'
+                },
+                {
                     name: '功能',
-                    desc: '本质上是辅助GE，来计算Attribute的工具，这个工具起到了多个作用。更加本质点，他其实是Attribute的代理，扩展了处理Buff这种功能。<br><ul>\
+                    desc: '本质上是辅助GE，来计算Attribute的工具，这个工具起到了多个作用。更加本质点，他其实更像Attribute的代理，扩展了处理Buff这种功能。<br><ul>\
                     <li>在GESpec Capture的时候，创造捕获Attribute的Aggregator。Aggregator是一个Attribute+多组Modifier</li>\
                     <li>Aggregator相当于Attribute的扩展计算器，不直接修改BaseValue，而是基于BaseValue计算出CurrentValue。</li>\
                     <li>Aggregator在BaseValue被修改之后，标记Dirty，此时需要重新计算CurrentValue，部分运行时FScopedAggregatorOnDirtyBatch还会辅助这个Dirty广播过程。</li>\
