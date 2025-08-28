@@ -22,6 +22,13 @@ const CONFIG = {
     // --- 图表定义 (支持多个) ---
     diagrams: [
         {
+            title: "概述",
+            definition: `
+                graph TD
+                GAS_Tutorial[相关范式]
+            `
+        },
+        {
             title: "GAS 核心类型",
             definition: `
                 graph TD
@@ -231,32 +238,36 @@ const CONFIG = {
             `
         },
         {
-            title: "Attribute修改流程",
+            title: "Modifier&Aggregator",
             definition: `
                 graph TD
 
+                Attribute修改流程_AA[构造GESpec阶段]
+                Attribute修改流程_AA --> |传递给ActiveGEContainer| Attribute修改流程_A
                 Attribute修改流程_A[ApplyGESpec阶段]
 
-                Attribute修改流程_B[某一次修改BaseValue]
-                Attribute修改流程_B -->|如果这个Attribute<br>没有对应的Aggregator| Attribute修改流程_C
-                Attribute修改流程_B -->|如果这个Attribute<br>有对应的Aggregator| Attribute修改流程_D
+                Attribute修改流程_B[某个GE直接修改BaseValue]
+                Attribute修改流程_B --> Attribute修改流程_C
                 
                 Attribute修改流程_C[直接修改BaseValue]
+                Attribute修改流程_C -->|如果这个Attribute<br>没有对应的Aggregator<br>说明Base和Current等价<br>没有额外Buff这一说| Attribute修改流程_CC
+                Attribute修改流程_C -->|如果这个Attribute<br>有对应的Aggregator<br>说明Base和Current存在不等价可能| Attribute修改流程_D
+
+                Attribute修改流程_CC[直接修改CurrentValue]
 
                 Attribute修改流程_D[修改Aggregator<br>的BaseValue]
                 Attribute修改流程_D --> Attribute修改流程_E
 
                 Attribute修改流程_E[Aggregator标记为Dirty]
-                Attribute修改流程_E -->|广播OnDirty| Attribute修改流程_F
+                Attribute修改流程_E --->|广播OnDirty| Attribute修改流程_F
                 Attribute修改流程_E -->|通知相关的GEHandle| Attribute修改流程_G
 
                 Attribute修改流程_F[Aggregator更新CurrentValue]
                 
-                Attribute修改流程_G[GE收到引用，更新自己的Modifier引用值<br>自己重新计算一遍当前Modifier的结果]
+                Attribute修改流程_G[GE收到引用，更新自己的Modifier引用值<br>自己重新计算一遍当前Modifier的结果<br>GESpec层的Magnitude更新]
                 Attribute修改流程_G --> Attribute修改流程_H
 
-                Attribute修改流程_H[GE作用的Aggregator删掉所有当前GE的Modifier<br>再按照之前计算的结果添加回到Aggregator<br>注意Aggregator里面每一个Mod都对应着某个GESpec里的某个Modifier]
-
+                Attribute修改流程_H[GE作用的Aggregator删掉所有当前GE的Modifier<br>再按照之前计算的结果添加回到Aggregator]
                 Attribute修改流程_H -->|GE作用的Aggregator又被修改了| Attribute修改流程_E
             `
         }
@@ -265,12 +276,121 @@ const CONFIG = {
     // --- 在这里配置每个节点的详细信息 ---
     // 注意: nodeDetails 是全局共享的, 所有图表的节点ID都从这里查找
     nodeDetails: {
-        'A': { title: '流程开始节点', variables: [{ name: 'StartTime', type: 'float', desc: '记录流程开始的时间' }] },
-        'B': { title: '数据处理' },
-        'C': { title: '条件判断' },
-        'D': { title: '操作A' },
-        'E': { title: '操作B' },
-        'F': { title: '流程结束' },
+        'Attribute修改流程_AA': { title: '构造GESpec阶段', 
+            methods: [
+                {
+                    name: '功能', 
+                    desc: 'GE上面的Modifier除了自己会修改的Attribute，简称Mod_Attr。<br>还会Capture一部分Attribute，简称Cap_Attr。<br>收集所有Cap_Attr的Definition，再CaptureSource。',
+                },
+                {
+                    name: 'Initialize',
+                    desc: '<code>SetupAttributeCaptureDefinitions</code><br>收集Definition，包含了Source和Target<br><code>CaptureDataFromSource</code><br>捕获Source，注册Attribute的Aggregator，生成AggregatorRef。',
+                    signature: 'void Initialize(const UGameplayEffect* InDef, const FGameplayEffectContextHandle& InEffectContext, float Level = FGameplayEffectConstants::INVALID_LEVEL);'
+                }
+            ]
+        },
+        'Attribute修改流程_A': { title: 'ApplyGESpec阶段', 
+            methods: [
+                {
+                    name: '功能', 
+                    desc: 'CaptureTarget<br>让GE的Cap_Attr注册回调，一旦Cap_Attr被修改了，通知自己也要修改。<br>让GE的Mod_Attr对应的Aggregator注册上当前GE的Modifier。'
+                },
+                {
+                    name: '部分先验知识',
+                    desc: 'GE层的CDO存放了Modifier草稿。<br>GESpec层存放了Modifier的Magnitude计算结果。<br>Aggregator层存放了Attribute的BaseValue，以及当前所有GE对其Buff类Modifier。'
+                },
+                {
+                    name: 'ApplyGameplayEffectSpec',
+                    desc: '<code>CaptureAttributeDataFromTarget</code><br>捕获Target<br><code>CalculateModifierMagnitudes</code><br>计算所有Modifiers的值<br><code>RegisterLinkedAggregatorCallbacks</code><br>注册回调，Cap_Attr对应的Aggregator的Dependents里面塞入当前的GEHandle<br><code>AddActiveGameplayEffectGrantedTagsAndModifiers</code><br>遍历所有的Modifier，往Mod_Attr对应的Aggregator添加。注意，这里的条件是PERIOD <= 0。',
+                    signature: 'FActiveGameplayEffect* ApplyGameplayEffectSpec(const FGameplayEffectSpec& Spec, FPredictionKey& InPredictionKey, bool& bFoundExistingStackableGE);'
+                }
+            ]
+        },
+        'Attribute修改流程_B': { title: '某个GE直接修改BaseValue', 
+            methods:[ 
+                {
+                    name: '功能',
+                    desc: '尝试去修改BaseValue',
+                },
+                {
+                    name: 'InternalExecuteMod',
+                    desc: '<code>PreGameplayEffectExecute</code><br>Execute前判断是否可计算<br><code>ApplyModToAttribute</code><br>修改BaseValue<br><code>PostGameplayEffectExecute</code><br>Execute后处理',
+                    signature: 'bool InternalExecuteMod(FGameplayEffectSpec& Spec, FGameplayModifierEvaluatedData& ModEvalData);',
+                }
+            ]
+        },
+        'Attribute修改流程_C': { title: '直接修改BaseValue',
+            methods: [
+                {
+                    name: 'SetAttributeBaseValue',
+                    desc: '<code>PreAttributeBaseChange</code><br>BaseValue修改前处理<br><code>DataPtr->SetBaseValue(NewBaseValue);</code><br>修改BaseValue<br><code>PostAttributeBaseChange</code><br>BaseValue修改后处理',
+                    signature: 'void SetAttributeBaseValue(FGameplayAttribute Attribute, float NewBaseValue);'
+                }
+            ]
+        },
+        'Attribute修改流程_CC': { title: '直接修改CurrentValue',
+            methods: [
+                {
+                    name: 'SetAttributeBaseValue',
+                    desc: '<code>InternalUpdateNumericalAttribute(Attribute, NewBaseValue, nullptr);</code><br>直接修改CurrentValue',
+                    signature: 'void SetAttributeBaseValue(FGameplayAttribute Attribute, float NewBaseValue);'
+                },
+                {
+                    name: 'SetNumericValueChecked',
+                    desc: '最终调用到这里<br><code>PreAttributeChange</code><br>CurrentValue修改前处理<br><code>DataPtr->SetCurrentValue(NewValue);</code><br>修改CurrentValue<br><code>PostAttributeChange</code><br>CurrentValue修改后处理',
+                    signature: 'void SetNumericValueChecked(float& NewValue, class UAttributeSet* Dest) const;'
+                }
+            ]
+        },
+        'Attribute修改流程_D': { title: '修改Aggregator的BaseValue',
+            methods: [
+                {
+                    name: 'SetAttributeBaseValue',
+                    desc: '<code>Aggregator->SetBaseValue(NewBaseValue);</code><br>先修改Aggregator的BaseValue，后续触发链式反应。',
+                    signature: 'void SetAttributeBaseValue(FGameplayAttribute Attribute, float NewBaseValue);'
+                }
+            ]
+        },
+        'Attribute修改流程_E': { title: 'Aggregator标记为Dirty',
+            methods: [
+                {
+                    name: 'BroadcastOnDirty',
+                    desc: '<code>OnDirty.Broadcast(this);</code><br>广播，重计算Aggregator对应的Attribute的CurrentValue。<br><code>ASC->OnMagnitudeDependencyChange(Handle, this);</code><br>广播，通知所有引用了当前Aggregator的GE，重新计算Mod_Attr。',
+                    signature: 'void BroadcastOnDirty();'
+                }
+            ]
+        },
+        'Attribute修改流程_F': { title: 'Aggregator更新CurrentValue',
+            methods: [
+                {
+                    name: 'OnAttributeAggregatorDirty',
+                    desc: '<code>Aggregator->Evaluate(EvaluationParameters)</code><br>重新计算自己。<br><code>InternalUpdateNumericalAttribute(Attribute, NewBaseValue, nullptr);</code><br>直接修改CurrentValue。',
+                    signature: 'void OnAttributeAggregatorDirty(FAggregator* Aggregator, FGameplayAttribute Attribute, bool FromRecursiveCall=false);'
+                }
+            ]
+        },
+        'Attribute修改流程_G': { title: 'GE收到引用，更新自己的Modifier引用值',
+            methods: [
+                {
+                    name: '功能',
+                    desc: 'GE收到Aggregator修改，遍历所有的Modifier，如果当前Cap_Attr的修改的确影响到了自己的Mod_Attr，那么重新计算一遍当前Mod_Attr，并添加到待更新队列',
+                },
+                {
+                    name: 'OnMagnitudeDependencyChange',
+                    desc: '<code>AttemptRecalculateMagnitudeFromDependentAggregatorChange</code><br>重计算当前Cap_Attr影响的Mod_Attr。<br><code>AttributesToUpdate.Add(ModDef.Attribute);</code><br>统计所有需要更新的Attribute。<br><code>UpdateAggregatorModMagnitudes</code><br>更新。',
+                    signature: 'void OnMagnitudeDependencyChange(FActiveGameplayEffectHandle Handle, const FAggregator* ChangedAgg);'
+                }
+            ]
+        },
+        'Attribute修改流程_H': { title: 'GE作用的Aggregator删掉所有当前GE的Modifier',
+            methods: [
+                {
+                    name: 'UpdateAggregatorModMagnitudes',
+                    desc: '<code>UpdateAggregatorMod</code><br>更新Mod_Attr对应的Aggregator，先删掉当前GE的Modifier，再添加回去。内部会调用BroadcastOnDirty，触发链式反应。',
+                    signature: 'void UpdateAggregatorModMagnitudes(const TSet<FGameplayAttribute>& AttributesToUpdate, FActiveGameplayEffect& ActiveEffect);'
+                }
+            ]
+        },
 
         // --- 以下是原有的 GAS 节点详情 ---
         'GA_UGameplayAbility': {
@@ -1003,6 +1123,20 @@ const CONFIG = {
                     <li>增加修改Modifier，类型为AttributeBase，并且BackingAttribute就是Strength，设置非Snapshot。</li>\
                     <li>中途即使修改Strength的BaseValue，Strength会根据Attribute找到自己的Aggregator，并且广播Dirty</li>\
                     <li>此时Aggregator重新计算出正确的值。如果BaseValue增加了10，那么对应的CurrentValue会增加12</li></ul>'
+                }
+            ]
+        },
+        'GAS_Tutorial':
+        {
+            methods: [
+                {
+                    name: 'GAS的架构设计',
+                    desc: '看了很久GAS，其实大概能够理解他希望做成这样的一个框架，Definition -> Spec -> Container，可以具体参考如下几条轨迹<br><ul>\
+                    <li>GA：UGameplayAbility -> FGameplayAbilitySpec -> FGameplayAbilitySpecContainer</li>\
+                    <li>GE：UGameplayEffect -> FGameplayEffectSpec -> FActiveGameplayEffectsContainer</li>\
+                    <li>Capture：FGameplayEffectAttributeCaptureDefinition -> FGameplayEffectAttributeCaptureSpec -> FGameplayEffectAttributeCaptureSpecContainer</li>\
+                    <li>此条为AI生成，Attribute的Definition是UAttributeSet，Spec是FGameplayAttribute，Container是FAggregator</li></ul>\
+                    这三条轨迹，分别对应了GAS的三大核心功能，技能，效果，属性。'
                 }
             ]
         }
