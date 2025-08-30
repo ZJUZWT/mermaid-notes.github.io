@@ -6,7 +6,7 @@
 const CONFIG = {
     // --- UI 显示文本配置 ---
     uiStrings: {
-        mainTitle: "Gameplay Ability System",
+        mainTitle: "GAS",
         dragHint: "(按住 Alt + 左键拖拽画布)",
         searchPlaceholder: "搜索变量/方法 (支持多词)",
         themeToggleButton: "切换主题",
@@ -74,9 +74,9 @@ const CONFIG = {
                     GA_FGameplayAbilityTargetDataHandle[FGameplayAbilityTargetDataHandle]
                     GA_FGameplayAbilityTargetDataHandle                 -->         |装填进入| GA_FGameplayEventData
                 end
-                GA_FGameplayAbilitySpecContainer                        -->         |ActivatableAbilities<br>Owner激活的GA<br>以学会的技能存在于| ASC_UAbilitySystemComponent
-                GA_FGameplayAbilitySpecHandle                           -.->        |GameplayEventTriggeredAbilities<br>存储什么GT可以触发什么GA<br>GA AbilityTriggers相关<br>以Map的Key存在于| ASC_UAbilitySystemComponent
-                GA_FGameplayEventData                                   -.-         |原生的GAS,两者通过GA<br>SendGameplayEvent交互<br>魔改后直接EventData作为Activate参数| ASC_UAbilitySystemComponent
+                GA_FGameplayAbilitySpecContainer                        -->         |ActivatableAbilities<br>Owner激活的GA<br>以学会的技能存在于| AbilitySystemComponent
+                GA_FGameplayAbilitySpecHandle                           -.->        |GameplayEventTriggeredAbilities<br>存储什么GT可以触发什么GA<br>GA AbilityTriggers相关<br>以Map的Key存在于| AbilitySystemComponent
+                GA_FGameplayEventData                                   -.-         |原生的GAS,两者通过GA<br>SendGameplayEvent交互<br>魔改后直接EventData作为Activate参数| AbilitySystemComponent
                 GA_FGameplayAbilitySpecDef_Array                        -->         |作为GrantedAbilitySpecs存在于<br>说明了GE可以GiveGA| GE_FGameplayEffectSpec
 
                 subgraph GameplayEffect
@@ -120,12 +120,10 @@ const CONFIG = {
                     GE_FGameplayEffectAttributeCaptureSpecContainer[FGameplayEffectAttributeCaptureSpecContainer<br>拥有Source和Target的Attribute捕获引用]
                     GE_FGameplayEffectAttributeCaptureSpecContainer     -->         |作为Attribute捕获集合<br>CapturedRelevantAttributes存在于| GE_FGameplayEffectSpec
                 end
-                GE_FActiveGameplayEffectsContainer                      -->         |ActiveGameplayEffects<br>存储当前运行中的DurationGE| ASC_UAbilitySystemComponent
+                GE_FActiveGameplayEffectsContainer                      -->         |ActiveGameplayEffects<br>存储当前运行中的DurationGE| AbilitySystemComponent
                 GE_FGameplayEffectAttributeCaptureSpec                  -->         |通过ActiveGEContainer绑定| AG_FAggregatorRef
 
                 subgraph Aggregator
-                    AG_Tutorial[相关范式]
-
                     AG_FAggregatorMod[FAggregatorMod<br>修改器参数<br>Result = &lpar;Base + A&rpar; * B / C里面的ABC<br>Result = Override里面的Override]
                     AG_FAggregatorMod                                   -.->        |Array| AG_FAggregatorMod_Array
 
@@ -145,38 +143,40 @@ const CONFIG = {
 
                     AG_FAggregator[FAggregator<br>GE配置的Modifier最终会变成这个数据<br>对同一个Attribute的修改会被聚合到这里]
                     AG_FAggregator                                      -->         |ShaderPtr<br>被包裹| AG_FAggregatorRef
+
+                    AG_Tutorial[相关范式]
                 end
                 AG_FAggregatorRef[FAggregatorRef]                       -->         |TMap&lt;FGameplayAttribute, FAggregatorRef&gt;<br>作为Attribute映射的Aggregator| GE_FActiveGameplayEffectsContainer
 
                 subgraph AttributeSet
                     AS_UAttributeSet[UAttributeSet]
 
-                    AS_FScalableFloat[FScalableFloat]
-
-                    AS_FGameplayAttribute[FGameplayAttribute<br>为了捕获这个值，编辑器上竟然遍历所有的Class<br>详见UpdatePropertyOptions<br>本质是选取Attribute的反射描述符<br>TODO]
+                    AS_FGameplayAttribute[FGameplayAttribute<br>为了捕获这个值，编辑器上竟然遍历所有的Class<br>详见UpdatePropertyOptions<br>本质是选取Attribute的反射描述符]
                     AS_FGameplayAttribute                               -->         |作为Attribute描述符存在于| AS_FGameplayModifierEvaluatedData
+                    AS_FGameplayAttribute                               -->         |反射描述<br>通常编辑器里面选取的都是这个| AS_FGameplayAttributeData
 
                     AS_FGameplayModifierEvaluatedData[FGameplayModifierEvaluatedData<br>描述了对Attribute的一次操作<br>包括了Attribute描述，Op，Magnitude]
                     AS_FGameplayModifierEvaluatedData                   -->         |作为操作信息EvaluatedData<br>存在于| AS_FGameplayEffectModCallbackData
 
                     AS_FGameplayEffectModCallbackData[FGameplayEffectModCallbackData<br>描述了因为某个EffectSpec对某个ASC的某次Attribute修改]
-                    AS_FGameplayEffectModCallbackData                   -->         |&lpar;Pre/Post&rpar;GEExecute广播| AS_UAttributeSet
+                    AS_FGameplayEffectModCallbackData                   -->         |&lpar;Pre/Post&rpar;GEExecute广播会传递这个值| AS_UAttributeSet
 
-                    AS_FGameplayAttributeData[FGameplayAttributeData<br>TODO]
+                    AS_FGameplayAttributeData[FGameplayAttributeData<br>真正的数据]
+                    AS_FGameplayAttributeData                           -->         |存放于| AS_UAttributeSet
                 end
-                AS_FScalableFloat                                       -->         |作为ScalableFloatMagnitude| Calc_FGameplayEffectModifierMagnitude
-                AS_FGameplayAttribute                                   -->         |作为捕获设定的描述符存在于| Calc_FGameplayEffectAttributeCaptureDefinition
+                AS_FGameplayAttribute                                   ----->      |作为捕获设定的描述符存在于| Calc_FGameplayEffectAttributeCaptureDefinition
+                AS_UAttributeSet                                        -->         |作为SpawnedAttributes存在于<br>可能在InitializeComponent被粗暴加载<br>也可能使用InitStats加载| AbilitySystemComponent
 
                 subgraph Calculator
+                    Calc_FScalableFloat[FScalableFloat]
+                    Calc_FScalableFloat                                 -->         |作为ScalableFloatMagnitude| Calc_FGameplayEffectModifierMagnitude
+
                     Calc_UGameplayEffectCalculation[UGameplayEffectCalculation<br>计算器的父类<br>本质上是一个AttributeCapture]
                     Calc_UGameplayEffectCalculation                     -->         |子类| Calc_UGameplayModMagnitudeCalculation
-                    Calc_UGameplayEffectCalculation                     -->         |子类| Calc_UGameplayEffectExecutionCalculation
+                    Calc_UGameplayEffectCalculation                     --->         |子类| Calc_UGameplayEffectExecutionCalculation
 
                     Calc_UGameplayModMagnitudeCalculation[UGameplayModMagnitudeCalculation<br>服务于Modifier<br>]
                     Calc_UGameplayModMagnitudeCalculation               -->         |CustomMagnitude内嵌的计算器| Calc_FCustomCalculationBasedFloat
-
-                    Calc_UGameplayEffectExecutionCalculation[UGameplayEffectExecutionCalculation<br>服务于Executions<br>通常都是直接拿CDO进行计算]
-                    Calc_UGameplayEffectExecutionCalculation            -->         |其Class被包装<br>因为通常只用CDO| Calc_FGameplayEffectExecutionDefinition
 
                     Calc_FGameplayEffectExecutionDefinition[FGameplayEffectExecutionDefinition]
                     Calc_FGameplayEffectExecutionDefinition             -.->        |Array| Calc_FGameplayEffectExecutionDefinition_Array
@@ -185,10 +185,10 @@ const CONFIG = {
                     Calc_FGameplayEffectExecutionDefinition_Array@{ shape: processes }
 
                     Calc_FAttributeBasedFloat[FAttributeBasedFloat]
-                    Calc_FAttributeBasedFloat                           --->         |作为AttributeBasedMagnitude| Calc_FGameplayEffectModifierMagnitude
+                    Calc_FAttributeBasedFloat                           --->        |作为AttributeBasedMagnitude| Calc_FGameplayEffectModifierMagnitude
 
                     Calc_FSetByCallerFloat[FSetByCallerFloat]
-                    Calc_FSetByCallerFloat                              ---->         |作为SetByCallerMagnitude| Calc_FGameplayEffectModifierMagnitude
+                    Calc_FSetByCallerFloat                              ---->       |作为SetByCallerMagnitude| Calc_FGameplayEffectModifierMagnitude
 
                     Calc_FCustomCalculationBasedFloat[FCustomCalculationBasedFloat]
                     Calc_FCustomCalculationBasedFloat                   -->         |作为CustomMagnitude| Calc_FGameplayEffectModifierMagnitude
@@ -208,16 +208,34 @@ const CONFIG = {
                     Calc_FGameplayEffectAttributeCaptureDefinition_Array[FGameplayEffectAttributeCaptureDefinition<br>Array]
                     Calc_FGameplayEffectAttributeCaptureDefinition_Array@{ shape: processes }
                     Calc_FGameplayEffectAttributeCaptureDefinition_Array-->         |被包裹| Calc_UGameplayEffectCalculation
-                    
+
+                    subgraph GameplayEffectExecutionCalculation
+                        direction LR;                        
+                        Calc_UGameplayEffectExecutionCalculation[UGameplayEffectExecutionCalculation<br>服务于Executions<br>通常都是直接拿CDO进行计算]
+                        Calc_UGameplayEffectExecutionCalculation        -.->        |计算器输出| Calc_FGameplayEffectCustomExecutionOutput
+
+                        Calc_FGameplayEffectCustomExecutionParameters[FGameplayEffectCustomExecutionParameters<br>计算器输入]
+                        Calc_FGameplayEffectCustomExecutionParameters   -.->        |计算器输入| Calc_UGameplayEffectExecutionCalculation
+
+                        Calc_FGameplayEffectCustomExecutionOutput[FGameplayEffectCustomExecutionOutput<br>计算器输出]
+                    end
+                    Calc_UGameplayEffectExecutionCalculation            --->         |其Class被包装<br>因为通常只用CDO| Calc_FGameplayEffectExecutionDefinition
                 end
                 %% Calc_FGameplayEffectModifierMagnitude                -->         |其中一种应用<br>SetSetByCallerMagnitude| GE_FGameplayEffectSpec
                 Calc_FGameplayModifierInfo_Array                        ---->       |作为Modifiers存在于| GE_UGameplayEffect
                 Calc_FGameplayEffectExecutionDefinition_Array           -->         |作为Excution存在于| GE_UGameplayEffect
                 Calc_FGameplayEffectAttributeCaptureDefinition          -->         |作为BackingDefinition存在于| GE_FGameplayEffectAttributeCaptureSpec
+                AS_FGameplayModifierEvaluatedData                       --->        |作为GEEC输出的修改存在于| Calc_FGameplayEffectCustomExecutionOutput
 
                 subgraph GameplayTags
-                    GT_FGameplayTagContainer[FGameplayTagContainer]
+                    GT_Tutorial[相关范式]
+
+                    GT_FGameplayTagContainer[FGameplayTagContainer<br>无处不在，通常用于配置]
+                    GT_FGameplayTagCountContainer[FGameplayTagCountContainer<br>不走网络同步]
+                    GT_FMinimalReplicationTagCountMap[FMinimalReplicationTagCountMap<br>Mixed模式同步给3P]
                 end
+                GT_FGameplayTagCountContainer                           -->         |作为真正的Tag记录<br>BlockedAbilityTags<br>GameplayTagCountContainer存在于| AbilitySystemComponent
+                GT_FMinimalReplicationTagCountMap                       -->         |作为同步优化<br>MinimalReplicationTags存在于| AbilitySystemComponent
 
                 subgraph AbilitySystemComponent
                     ASC_Tutorial[相关范式]
@@ -233,8 +251,14 @@ const CONFIG = {
 
                     GTask_UGameplayTask_Array[UGameplayTask<br>Array]
                     GTask_UGameplayTask_Array@{ shape: processes }
+
+                    GTask_UGameplayTasksComponent[UGameplayTasksComponent]
+
+                    GTask_IGameplayTaskOwnerInterface[IGameplayTaskOwnerInterface<br>部分接口，包括了OnGameplayTaskActivated]
                 end
-                GTask_UGameplayTask_Array                               -->         |ActiveTasks<br>通过ASC<br>以执行中的任务存在于| GA_UGameplayAbility
+                GTask_IGameplayTaskOwnerInterface                       -->         |被实现| GA_UGameplayAbility
+                GTask_UGameplayTask_Array                               --->        |ActiveTasks<br>通过ASC<br>以执行中的任务存在于| GA_UGameplayAbility
+                GTask_UGameplayTasksComponent                           -->         |子类| ASC_UAbilitySystemComponent
             `
         },
         {
@@ -267,8 +291,112 @@ const CONFIG = {
                 Attribute修改流程_G[GE收到引用，更新自己的Modifier引用值<br>自己重新计算一遍当前Modifier的结果<br>GESpec层的Magnitude更新]
                 Attribute修改流程_G --> Attribute修改流程_H
 
-                Attribute修改流程_H[GE作用的Aggregator删掉所有当前GE的Modifier<br>再按照之前计算的结果添加回到Aggregator]
-                Attribute修改流程_H -->|GE作用的Aggregator又被修改了| Attribute修改流程_E
+                Attribute修改流程_H[Mod_Attr对应的Aggregator删掉所有当前GE的Modifier<br>再按照之前计算的结果添加回到Aggregator]
+                Attribute修改流程_H -->|Mod_Attr的Aggregator为脏| Attribute修改流程_E
+            `
+        },
+        {
+            title: "生命周期",
+            definition: `
+                graph LR
+
+                subgraph GameplayTag
+                    GT_Metion[这个部分UE5改了挺多<br>GE身上不再有那么多杂乱的Tag]
+                end
+                GameplayTag ----> |OngoingTag<br>Require All<br>Ignore Any<br>如果Tag不满足条件，会被关闭而不是Remove<br>CheckOngoingTagRequirements| GameplayEffect
+                GameplayTag ----> |RemovalTag<br>Require All<br>Ignore Any<br>如果Tag满足条件，会被Remove<br>CheckRemovalTagRequirements| GameplayEffect
+                GameplayTag ----> |Application<br>Require All<br>Ignore Any<br>如果Tag不满足条件，不会被Apply<br>ApplyGameplayEffectSpecToSelf| GameplayEffect
+                GameplayTag ----> |CancelAbilitiesWithTag<br>激活时取消有这个Tag的GA| GameplayAbility
+                GameplayTag ----> |ActivationRequiredTags<br>没有不能激活| GameplayAbility
+                GameplayTag ----> |ActivationBlockedTags<br>有了不能激活| GameplayAbility
+                GameplayTag ----> |SourceRequiredTags<br>Source没有不能激活| GameplayAbility
+                GameplayTag ----> |SourceBlockedTags<br>Source有了不能激活| GameplayAbility
+                GameplayTag ----> |TargetRequiredTags<br>Target没有不能激活| GameplayAbility
+                GameplayTag ----> |TargetBlockedTags<br>Target有了不能激活| GameplayAbility
+                GameplayTag ----> |AbilityTriggers<br>可以被TriggerTag激活| GameplayAbility
+
+                subgraph GameplayAbility
+                    direction TB
+
+                    GA_GiveAbility[GiveAbility<br>角色拥有技能]
+                    GA_GiveAbility --> GA_ClearAbility
+                    GA_ClearAbility[ClearAbility<br>角色失去技能]
+
+                    GA_TryActivateAbility[TryActivateAbility<br>处理Client/Server分流<br>NetExecutionPolicy] -->
+                    GA_InternalTryActivateAbility[InternalTryActivateAbility<br>处理Can<br>处理InstancingPolicy<br>处理Prediction包括LocalPredition分流<br>携带EventData] -->
+                    GA_CallActivate[CallActivate<br>激活] --> 
+                    GA_PreActivate[PreActivate] --> 
+                    GA_ActivateAbility[ActivateAbility] --> 
+                    GA_EndAbility[EndAbility]
+
+                    GA_ActivateAbility -.-> |外部Cancel| GA_CancelAbility
+                    GA_CancelAbility[CancelAbility]
+                    GA_CancelAbility --> GA_EndAbility
+                end
+                GameplayAbility ----> |ApplyGE的时候可以获取Handle<br>应用层通过Handle主动控制GE生命周期<br>否则GE可以不受GA管控| GameplayEffect
+                GameplayAbility --> |bRemoveOnAbilityEnd| GameplayCue
+                GameplayAbility --> |通过ActiveTasks控制| GameplayTask
+                GameplayAbility --> |ActivationOwnedTags<br>激活时增加Tag| GameplayTag
+                GameplayAbility --> |BlockedAbilityTags<br>激活时增加BlockTag| GameplayTag
+
+                subgraph GameplayEffect
+                    direction TB
+
+                    GE_ApplyGameplayEffectSpecToSelf[ApplyGameplayEffectSpecToSelf<br>处理Duration分流]
+                    GE_ApplyGameplayEffectSpecToSelf --> |非Instant<br>&lpar;还有LocalPrediction的Instant&rpar;<br>放置进Container| GE_ApplyGameplayEffectSpec
+                    GE_ApplyGameplayEffectSpecToSelf --> |Instant直接执行| GE_ExecuteGameplayEffect
+
+                    GE_ApplyGameplayEffectSpec[ApplyGameplayEffectSpec<br>计算Duration<br>设置Duration计时器<br>设置Period计时器Loop<br>根据bExecutePeriodicEffectOnApplication执行]
+                    GE_ApplyGameplayEffectSpec -.-> |Period计时器到了<br>执行Period| GE_ExecutePeriodicEffect
+                    GE_ApplyGameplayEffectSpec -.-> |Duration计时器到了<br>执行Duration| GE_CheckDurationExpired
+
+                    GE_ExecuteGameplayEffect[ExecuteGameplayEffect]
+                    GE_ExecuteGameplayEffect --> GE_ExecuteActiveEffectsFrom
+
+                    GE_ExecutePeriodicEffect[ExecutePeriodicEffect<br>到时间执行]
+                    GE_ExecutePeriodicEffect --> |Period直接执行| GE_ExecuteActiveEffectsFrom
+
+                    GE_CheckDurationExpired[CheckDurationExpired<br>到时间判断是否过期<br>EGameplayEffectStackingExpirationPolicy]
+                    GE_CheckDurationExpired --> |如果过期| InternalRemoveActiveGameplayEffect
+
+                    GE_ExecuteActiveEffectsFrom[ExecuteActiveEffectsFrom]
+                end
+                GameplayEffect  --> |GE通过配置GrantedAbilitySpecs启动GA<br>通过RemovalPolicy管控生命周期| GameplayAbility
+                GameplayEffect  ----> |DynamicGrantedTags<br>增加Tag| GameplayTag
+                GameplayEffect  ----> |DynamicGrantedTags<br>增加BlockTag| GameplayTag
+                GameplayEffect  ----> |GrantedTags<br>增加Tag| GameplayTag
+                GameplayEffect  --> |Mod_Attr<br>聚合修改<br>一个Aggregator包含了所有GE对同一个Attribute的修改| Aggregator
+
+                subgraph GameplayCue
+
+                end
+
+                subgraph GameplayTask
+                    direction TB
+
+                    GTask_InitTask[InitTask<br>初始化数据<br>由NewAbilityTask调用]
+                    GTask_InitTask --> GTask_ReadyForActivation
+
+                    GTask_ReadyForActivation[ReadyForActivation<br>启动Task<br>蓝图默认调用这个函数]
+                    GTask_ReadyForActivation -->|TasksComponent合法| GTask_Activate
+                    GTask_ReadyForActivation -->|TasksComponent不合法| GTask_EndTask
+
+                    GTask_Activate[Activate<br>核心处理逻辑]
+                    GTask_Activate -.->|异步执行完毕| GTask_EndTask
+
+                    GTask_TaskOwnerEnded[TaskOwnerEnded<br>依附的GA死掉了]
+                    GTask_TaskOwnerEnded --> GTask_OnDestroy
+
+                    GTask_EndTask[EndTask]
+                    GTask_EndTask --> GTask_OnDestroy
+
+                    GTask_OnDestroy[OnDestroy]
+                end
+
+                subgraph Aggregator
+
+                end
+                Aggregator -->|Cap_Attr<br>捕获引用<br>GE计算时依赖的Attribute| GameplayEffect
             `
         }
     ],
@@ -555,7 +683,18 @@ const CONFIG = {
         },
         'GA_FGameplayAbilitySpecHandle': { title: 'FGameplayAbilitySpecHandle' },
         'GA_FGameplayAbilitySpecContainer': { title: 'FGameplayAbilitySpecContainer' },
+
         'GT_FGameplayTagContainer': { title: 'FGameplayTagContainer' },
+        'GT_FMinimalReplicationTagCountMap': {
+            title: 'FMinimalReplicationTagCountMap',
+            methods: [
+                {
+                    name: 'NetSerialize',
+                    desc: '网络同步序列化<br>同步结构体只同步Tag，如果有那么在客户端标记数量为1。<br>有的时候1P Unpossess就会有问题！',
+                    signature: 'bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);'
+                }
+            ]
+        },
         'AS_UAttributeSet': {
             title: 'UAttributeSet(核心属性)',
             methods: [
@@ -928,9 +1067,20 @@ const CONFIG = {
             methods: [
                 {
                     name: 'Execute',
-                    desc: '这里面非常重要，将FGameplayEffectCustomExecutionParameters输入进来，然后输出FGameplayEffectCustomExecutionOutput，自己只是一个处理器！',
+                    desc: '这里面非常重要，将FGameplayEffectCustomExecutionParameters输入进来，然后输出FGameplayEffectCustomExecutionOutput，自己只是一个处理器！\
+                    <br>通常在ExecuteActiveEffectsFrom中被调用',
                     signature: 'void Execute(const FGameplayEffectCustomExecutionParameters& ExecutionParams, FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const;'
                 }
+            ]
+        },
+        'Calc_FGameplayEffectCustomExecutionOutput':
+        {
+            title: 'FGameplayEffectCustomExecutionOutput',
+            variables: [
+                { name: 'OutputModifiers', type: 'TArray&lt;FGamePlayModifierEvaluatedData&gt;', desc: 'GEEC执行完毕之后产出的Modifier。'},
+                { name: 'bTriggerConditionalGameplayEffects', type: 'uint32', desc: '这个标志位如果为True，那么就会在ExecuteActiveEffectsFrom里面去将配置的Conditional GE给Self'},
+                { name: 'bHandledStackCountManually', type: 'uint32', desc: '这个标志位如果为True，那么就不会在ExecuteActiveEffectsFrom里面去自动处理Stack'},
+                { name: 'bHandledGameplayCuesManually', type: 'uint32', desc: '这个标志位如果为True，那么就不会在ExecuteActiveEffectsFrom里面去自动处理GC'}
             ]
         },
         'Calc_UGameplayEffectCalculation':
@@ -971,6 +1121,56 @@ const CONFIG = {
         {
             title: 'FCustomCalculationBasedFloat'
         },
+        'Calc_FGameplayEffectExecutionDefinition':
+        {
+            title: 'FGameplayEffectExecutionDefinition',
+        },
+        'GTask_UGameplayTask':
+        {
+            title: 'UGameplayTask',
+            methods: [
+                {
+                    name: 'ReadyForActivation',
+                    desc: '标准的启动函数，蓝图里面ProxyActivateFunctionName会调用这个函数。这个函数会将自己放入GA的生命周期',
+                    signature: 'GAMEPLAYTASKS_API void ReadyForActivation();'
+                },
+                {
+                    name: 'Activate',
+                    desc: '执行函数，具体需要子类实现<br>注意，直接调用这个函数去执行Task非常危险！<br>本身这个是虚函数，设置的Protected，但是Cpp里面继承可以修改虚函数的修饰符，比如UAbilityTask_NetworkSyncPoint里面使用GENERATED_UCLASS_BODY，会泄漏public给下面的变量，导致Activate变Public了。',
+                    signature: 'GAMEPLAYTASKS_API virtual void Activate();'
+                }
+            ],
+        },
+        'GTask_UGameplayTasksComponent':
+        {
+            title: 'UGameplayTasksComponent',
+            methods: [
+                {
+                    name: 'OnGameplayTaskActivated',
+                    desc: '将Task放入GA的列表',
+                    signature: 'GAMEPLAYTASKS_API virtual void OnGameplayTaskActivated(UGameplayTask& Task) override;'
+                },
+            ]
+        },
+        'GTask_IGameplayTaskOwnerInterface':
+        {
+            title: 'IGameplayTaskOwnerInterface',
+            methods: [
+                {
+                    name: 'OnGameplayTaskInitialized',
+                    signature: 'virtual void OnGameplayTaskInitialized(UGameplayTask& Task) {}'
+                },
+                {
+                    name: 'OnGameplayTaskActivated',
+                    desc: 'GA里面会将Task塞到自己的ActiveTasks里面',
+                    signature: 'virtual void OnGameplayTaskActivated(UGameplayTask& Task) {}'
+                },
+                {
+                    name: 'OnGameplayTaskDeactivated',
+                    signature: 'virtual void OnGameplayTaskDeactivated(UGameplayTask& Task) {}'
+                }
+            ]
+        },
         'GA_Tutorial':
         {
             title: 'GA相关范式',
@@ -1010,32 +1210,32 @@ const CONFIG = {
             title: 'GE相关范式',
             methods: [
                 {
-                    name: 'GE的“身份”：类型与周期 (Duration)',
-                    desc: 'GE有三种基本类型，决定了它的生命周期：<br>- <b>Instant (即时)</b>: 应用后立即执行，然后就消失。用于造成单次伤害、瞬间治疗。<br>- <b>Duration (持续)</b>: 应用后会持续一段时间，到期后自动移除。用于DOT、BUFF、DEBUFF。<br>- <b>Infinite (无限)</b>: 应用后会永久存在，除非被手动移除。用于永久性光环、装备提供的属性加成。'
+                    name: 'GE可以干什么？',
+                    desc: 'GE的功能非常丰富<ul>\
+                    <li>修改Attribute与Tag。</li>\
+                    <li>自定义计算器GEEC的执行载体。</li>\
+                    <li>根据Tag的变化来调整自己是否关闭、移除，判断自己能否激活。</li>\
+                    <li>自身激活时还能激活GA，套娃。</li>\
+                    </ul>'
                 },
                 {
-                    name: 'GE的核心工作：修改属性与标签',
-                    desc: 'GE主要通过以下方式影响目标：<br>- <b>Attribute Modifiers</b>: 这是GE最核心的功能。定义了要修改哪个属性（如Health）、操作方式（加、减、乘、覆盖）、以及数值。<br>- <b>Granted Tags</b>: 当GE生效时，可以给目标添加一个或多个GameplayTag。这是实现状态（如眩晕、燃烧、冰冻）的基础。<br>- <b>Granted Abilities</b>: 强大的功能。当GE生效时，可以临时或永久地赋予目标新的技能。例如，一个“恶魔变身”的BUFF GE可以赋予玩家新的恶魔技能。'
+                    name: 'GE模式模板',
+                    desc: 'GE功能十分丰富，给了使用者一定的压力，但是其创建部分功能模板存在一定规范。<ul>\
+                    <li>立即模板：<br>Instant，立即触发的效果。</li>\
+                    <li>Buff模板：<br>非Instant，如果Duration有值Period为0，为Buff类型，会启用Aggregator辅助计算。此时修改Attribute的BaseValue和CurrentValue会出现不对齐的情况。比如10s内攻击力提升20%。</li>\
+                    <li>持续效果模板：<br>非Insatnt，如果Duration有值Period不为0，每到Period时间，就会进行一次修改。比如附加10s着火效果，每2s会扣除10生命值。并且存在配置Period在Apply瞬间是否启用。</li>\
+                    <li>免疫模板：<br>配合Buff模式，使用GrantedApplicationImmunityTags。不过个人觉得这样设计的并不是很好，更好的是Ongoing。例如BKB。</li>\
+                    <li>多层Buff模板：<br>非Instant，开启StackingType，可以配置Stacking消失的行为，重新叠加的行为等。例如着火层数。</li>\
+                    <li>条件判断模板：<br>使用GEEC的bTriggerConditionalGameplayEffects标记位与多组GEEC，形成复杂的条件化GE。例如受伤GE，可以设置一个条件判断不同部位的GE，然后Conditional执行每个部位的受伤GE。</li>\
+                    </ul>'
                 },
                 {
-                    name: 'GE的“计算逻辑”：Modifier vs Execution',
-                    desc: 'GE的数值计算主要有两种方式：<br>- <b>Attribute Based (基于属性)</b>: 直接使用Modifier。数值可以是一个固定值，也可以引用某个属性值（例如伤害值等于“攻击力”属性的50%）。简单直接，配置驱动。<br>- <b>Custom Execution Calculation (自定义计算)</b>: 使用`GameplayEffectExecutionCalculation` C++类。这允许你编写任意复杂的计算逻辑，可以捕获源和目标的多个属性，进行复杂的公式计算（如考虑护甲、抗性、暴击、等级差异等），最后输出最终的属性修改量。<b>所有复杂的伤害计算都应使用Execution。</b>'
+                    name: 'GE的生命周期',
+                    desc: 'GE的生命周期除了Duration结束以外，不受任何的自动监控，比如一个GA激活了一个GE，这个GA结束了，GE仍然可以存在于ActiveGEContainer中并且执行修改。详见生命周期章节。'
                 },
                 {
-                    name: 'GE的“应用条件与免疫”',
-                    desc: 'GE并非总能成功应用。通过`Application Tag Requirements`可以设置应用的前置条件：<br>- <b>Ongoing Tag Requirements</b>: 目标必须拥有这些Tag，GE才能应用。<br>- <b>Ignore Tag Requirements</b>: 如果目标拥有这些Tag，GE将无法应用。<b>这就是实现“火焰免疫”（拥有`State.Immunity.Fire`标签）等逻辑的地方。</b>'
-                },
-                {
-                    name: 'GE的“堆叠规则” (Stacking)',
-                    desc: '当一个目标已经有了一个GE，再次对他应用同一个GE时会发生什么？由堆叠规则决定。<br>- <b>Aggregate by Source/Target</b>: 每个施法者/所有施法者共享一个GE实例，刷新持续时间或增加层数。<br>- <b>Stack Limit</b>: 可以设置最大堆叠层数。层数可以影响Modifier的最终数值。例如，每层“中毒”GE使伤害增加10%。'
-                },
-                {
-                    name: 'GE的“表现层”：GameplayCue',
-                    desc: 'GE本身只负责数据和逻辑，不负责视觉表现。<b>GameplayCue是连接GE和特效/音效的桥梁。</b>GE可以设置在“被应用时”、“执行时”、“被移除时”触发哪个GameplayCue（通过GameplayTag匹配）。GameplayCue是一个独立的蓝图或Actor，负责播放粒子特效、声音、屏幕震动等。<b>这使得数据逻辑和视觉表现完美解耦。</b>'
-                },
-                {
-                    name: 'GE的“法证报告”：EffectContext',
-                    desc: '每个被应用的GE都携带一个`EffectContext`。这个“报告”记录了效果的完整因果链：谁发起的、由哪个技能、用什么东西造成的。这对于后续的逻辑判断（如伤害来源反弹、击杀归属）和调试至关重要。'
+                    name: 'GE与Aggregator',
+                    desc: 'Aggregator对应一个Attribute，统筹了当前所有GE对这个Attribute的Modifier'
                 }
             ]
         },
@@ -1123,10 +1323,15 @@ const CONFIG = {
                 {
                     name: '使用',
                     desc: 'Aggregator系统更像一个Buff,如果我们要创建一个，玩家攻击力提升20%的Buff，时长10s，假设攻击力Attribute为Strength<ul>\
-                    <li>创建GE，Duration为10s，Period为0<li>\
+                    <li>创建GE，Duration为10s，Period为0</li>\
                     <li>增加修改Modifier，类型为AttributeBase，并且BackingAttribute就是Strength，设置非Snapshot。</li>\
                     <li>中途即使修改Strength的BaseValue，Strength会根据Attribute找到自己的Aggregator，并且广播Dirty</li>\
                     <li>此时Aggregator重新计算出正确的值。如果BaseValue增加了10，那么对应的CurrentValue会增加12</li></ul>'
+                },
+                {
+                    name: '自定义Mod计算',
+                    desc: '通常Aggregator上面有众多Modifier，并且将所有的Modifier系数加在一起之后，再进行计算，不过利用QualifierFunc可以实现最大值最小值计算。<br>\
+                    官方存在示例QualifierFunc_MostNegativeMod_AllPositiveMods。原理就是每个Modifier都可以设置其有效性，这里单独计算一下值，然后比较，将计算出来最小的结果对应的Modifier为有效，后续计算就只会计算单条的结果了，其他的无效条目不会纳入计算。'
                 }
             ]
         },
@@ -1141,6 +1346,19 @@ const CONFIG = {
                     <li>Capture：FGameplayEffectAttributeCaptureDefinition -> FGameplayEffectAttributeCaptureSpec -> FGameplayEffectAttributeCaptureSpecContainer</li>\
                     <li>此条为AI生成，Attribute的Definition是UAttributeSet，Spec是FGameplayAttribute，Container是FAggregator</li></ul>\
                     这三条轨迹，分别对应了GAS的三大核心功能，技能，效果，属性。'
+                },
+                {
+                    name: 'UE的设计',
+                    desc: 'UE经常会为了丰富自己的功能，把框架设计的比较非人类，就像Niagara，美其名曰给使用者提供丰富功能不需要二次开发，但其实不看源代码也不知道是干什么的，导致程序员和策划美术都很痛苦。'
+                }
+            ]
+        },
+        'GT_Tutorial':
+        {
+            methods: [
+                {
+                    name: 'GameplayTag的同步优化',
+                    desc: '真正存储Tag的一个Map，是Tag映射到Count的Map，但是对于3P，架构认为不需要知道某一个Tag设置了多少个，所以只有【0->1】或者【1->0】这个过程会通知给3P。如果此时1P不小心Unpossess了（并且后续还要Possess回来），就有点危险了。'
                 }
             ]
         }
