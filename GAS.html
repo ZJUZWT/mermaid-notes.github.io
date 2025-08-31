@@ -29,7 +29,6 @@
             --toast-text-color: #fff;
             --tab-active-bg: #e0e0e0;
             --tab-active-border: #0056b3;
-            --mermaid-font-family: "Bahnschrift SemiCondensed" !important;
         }
 
         [data-theme=dark] {
@@ -306,14 +305,12 @@
                 if (panZoomInstances[tabIndex]) return; // Already initialized
 
                 const currentTheme = document.body.getAttribute('data-theme') === 'dark' ? 'dark' : 'default';
-                mermaid.initialize({ startOnLoad: true, theme: currentTheme, flowchart: { useMaxWidth: false }, maxTextSize: 90000, 
-                    startOnLoad:true,
-                    htmlLabels:true,
-                    callback:function(id){
-                        console.log(id,' rendered');
-                    },
+                mermaid.initialize({ startOnLoad: true, theme: currentTheme, maxTextSize: 90000, 
                     flowchart:{
-                        useMaxWidth:false,
+                        // useWidth:500,
+                        // useMaxWidth:true,
+                        wrappingWidth   :500,   // 重要
+                        htmlLabels      :false  // 重要
                     }
                 });
                 
