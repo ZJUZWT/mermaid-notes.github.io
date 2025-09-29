@@ -159,6 +159,8 @@
         .search-result-item { padding: 12px; border-radius: 6px; margin-top: 10px; background-color: var(--details-bg-color); cursor: pointer; transition: box-shadow 0.2s; }
         .search-result-item:hover { box-shadow: 0 0 0 2px var(--search-highlight-stroke); }
         .result-node-title { font-size: 0.8em; font-weight: bold; padding: 2px 8px; border-radius: 10px; background-color: var(--method-badge-bg); color: var(--method-badge-text); margin-right: 8px; }
+        .result-tab-title { font-size: 0.8em; font-weight: bold; padding: 2px 8px; border-radius: 10px; background-color: var(--type-badge-bg); color: var(--type-badge-text); margin-left: 8px; }
+
 
         #tooltip-container { position: fixed; padding: 0; border-radius: 6px; border: 1px solid var(--border-color); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); max-width: 800px; z-index: 9999; opacity: 0; visibility: hidden; transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out; pointer-events: none; overflow: hidden; background-color: var(--tooltip-bg-color); transform: scale(0.95); }
         #tooltip-container[style*="opacity: 1"] { transform: scale(1); }
@@ -281,10 +283,10 @@
             }
 
             function clearAllHighlights() {
-                const activeContainer = getActiveDiagramContainer();
-                if (activeContainer) {
-                    activeContainer.querySelectorAll('.search-highlight, .selected-node').forEach(el => el.classList.remove('search-highlight', 'selected-node'));
-                }
+                // Clear highlights across all diagram containers
+                document.querySelectorAll('.diagram-content').forEach(container => {
+                    container.querySelectorAll('.search-highlight, .selected-node').forEach(el => el.classList.remove('search-highlight', 'selected-node'));
+                });
             }
             
             function offsetDiagramForPanel(isPanelOpen) {
@@ -312,7 +314,7 @@
 
             function handleNodeClick(nodeId, highlightItemName = null) { 
                 clearAllHighlights(); 
-                const nodeElement = getActiveDiagramContainer().querySelector(`g[data-node-id="${nodeId}"]`); 
+                const nodeElement = getActiveDiagramContainer()?.querySelector(`g[data-node-id="${nodeId}"]`); 
                 if (nodeElement) { 
                     nodeElement.classList.add('selected-node'); 
                 } 
@@ -325,10 +327,9 @@
                 const currentTheme = document.body.getAttribute('data-theme') === 'dark' ? 'dark' : 'default';
                 mermaid.initialize({ startOnLoad: true, theme: currentTheme, maxTextSize: 90000, 
                     flowchart:{
-                        // useWidth:500,
                         useMaxWidth     :false,
-                        wrappingWidth   :500,   // 重要
-                        htmlLabels      :false  // 重要
+                        wrappingWidth   :500,
+                        htmlLabels      :true
                     }
                 });
                 
@@ -346,7 +347,6 @@
                         dblClickZoomEnabled: false, zoomScaleSensitivity: 0.5
                     });
                     
-                    // Alt+Drag bug fix
                     svgElement.addEventListener('dragstart', (event) => { event.preventDefault(); });
                     
                     svgElement.addEventListener('mousedown', (event) => { 
@@ -371,14 +371,16 @@
                     });
                 }
                 
-                for (const nodeId in CONFIG.nodeDetails) {
+                 // Add clickable class and data-id to all potential nodes, even without details
+                const nodeIdsInDiagram = new Set(Array.from(diagramDef.matchAll(/(\w+)(?:\[|\{|\(|\b)/g), m => m[1]));
+                 nodeIdsInDiagram.forEach(nodeId => {
                     const selector = `g[id*="-${nodeId}-"]`;
                     const nodeElement = container.querySelector(selector);
-                    if (nodeElement) { 
-                        nodeElement.classList.add('clickable-node'); 
-                        nodeElement.setAttribute('data-node-id', nodeId); 
+                    if (nodeElement) {
+                        nodeElement.classList.add('clickable-node');
+                        nodeElement.setAttribute('data-node-id', nodeId);
                     }
-                }
+                });
             }
             
             function createListItemHtml(item, type, highlightItemName) {
@@ -413,6 +415,9 @@
                 const details = CONFIG.nodeDetails[nodeId];
                 if (!details) { 
                     closeDetailsPanel();
+                    // Still highlight the node even if no details
+                    const nodeElement = getActiveDiagramContainer()?.querySelector(`g[data-node-id="${nodeId}"]`);
+                    if (nodeElement) nodeElement.classList.add('selected-node');
                     return; 
                 }
                 titleEl.innerText = details.title || nodeId;
@@ -437,24 +442,53 @@
             
             function showSearchResults(matches) { 
                 clearAllHighlights(); 
-                const matchedNodeIds = new Set(matches.map(m => m.nodeId));
-                const activeContainer = getActiveDiagramContainer();
-                matchedNodeIds.forEach(id => { const el = activeContainer.querySelector(`g[data-node-id="${id}"]`); if(el) el.classList.add('search-highlight'); }); 
                 
+                const activeContainer = getActiveDiagramContainer();
+                matches.forEach(match => {
+                    if (match.tabIndex === currentTabIndex) {
+                         const el = activeContainer.querySelector(`g[data-node-id="${match.nodeId}"]`);
+                         if (el) el.classList.add('search-highlight');
+                    }
+                });
+
                 titleEl.innerText = CONFIG.uiStrings.searchResultsTitle(matches.length); 
                 if (matches.length === 0) { 
                     bodyEl.innerHTML = `<p>${CONFIG.uiStrings.noResults}</p>`; 
                 } else { 
-                    const listItems = matches.map(match => { 
-                        const nodeDetails = CONFIG.nodeDetails[match.nodeId]; 
-                        const allItems = [...(nodeDetails?.variables || []), ...(nodeDetails?.methods || [])].flatMap(item => item.category ? item.items : item);
-                        const itemDetails = allItems.find(i => i.name === match.itemName);
-                        const signatureAttr = itemDetails?.signature ? `data-signature="${itemDetails.signature.replace(/"/g, '&quot;')}"` : ''; 
-                        let badgeHtml = ''; 
-                        const isMethod = (nodeDetails?.methods || []).flatMap(m => m.category ? m.items : m).some(m => m.name === match.itemName);
-                        if (isMethod) { badgeHtml = `<span class="method-badge">Method</span>`; } 
-                        else if (itemDetails?.type) { badgeHtml = `<span class="type-badge">${itemDetails.type}</span>`; } 
-                        return `<li class="search-result-item" data-node-id="${match.nodeId}" data-item-name="${match.itemName}"><div class="item-header"><span class="result-node-title">${nodeDetails.title}</span><span class="item-name-code" ${signatureAttr}>${match.itemName}</span>${badgeHtml}</div><p class="item-desc">${match.itemDesc}</p></li>`; 
+                    const listItems = matches.map(match => {
+                        const tabTitle = CONFIG.diagrams[match.tabIndex].title;
+                        const tabBadge = `<span class="result-tab-title">${tabTitle}</span>`;
+                        let itemHtml;
+
+                        if (match.matchType === 'node') {
+                             itemHtml = `
+                                <div class="item-header">
+                                    <span class="type-badge">Node</span>
+                                    <span class="item-name-code">${match.itemName}</span>
+                                    ${tabBadge}
+                                </div>
+                                <p class="item-desc">${match.itemDesc}</p>`;
+                        } else {
+                            const nodeDetails = CONFIG.nodeDetails[match.nodeId]; 
+                            const allItems = [...(nodeDetails?.variables || []), ...(nodeDetails?.methods || [])].flatMap(item => item.category ? item.items : item);
+                            const itemDetails = allItems.find(i => i.name === match.itemName);
+                            const signatureAttr = itemDetails?.signature ? `data-signature="${itemDetails.signature.replace(/"/g, '&quot;')}"` : ''; 
+                            let badgeHtml = ''; 
+                            const isMethod = (nodeDetails?.methods || []).flatMap(m => m.category ? m.items : m).some(m => m.name === match.itemName);
+                            if (isMethod) { badgeHtml = `<span class="method-badge">Method</span>`; } 
+                            else if (itemDetails?.type) { badgeHtml = `<span class="type-badge">${itemDetails.type}</span>`; } 
+
+                            itemHtml = `
+                                <div class="item-header">
+                                    <span class="result-node-title">${nodeDetails.title}</span>
+                                    <span class="item-name-code" ${signatureAttr}>${match.itemName}</span>
+                                    ${badgeHtml}
+                                    ${tabBadge}
+                                </div>
+                                <p class="item-desc">${match.itemDesc}</p>`;
+                        }
+                        
+                        return `<li class="search-result-item" data-node-id="${match.nodeId}" data-item-name="${match.itemName}" data-tab-index="${match.tabIndex}">${itemHtml}</li>`; 
                     }).join(''); 
                     bodyEl.innerHTML = `<ul class="search-results-list">${listItems}</ul>`; 
                 } 
@@ -468,34 +502,77 @@
 
                 document.querySelectorAll('.search-result-item').forEach(item => { 
                     item.addEventListener('click', () => { 
+                        const targetTabIndex = parseInt(item.getAttribute('data-tab-index'), 10);
                         const targetNodeId = item.getAttribute('data-node-id'); 
-                        const targetItemName = item.getAttribute('data-item-name'); 
-                        handleNodeClick(targetNodeId); 
-                        showNodeDetails(targetNodeId, targetItemName); 
+                        const targetItemName = item.getAttribute('data-item-name');
+                        
+                        const doHighlight = () => {
+                            handleNodeClick(targetNodeId, targetItemName);
+                        };
+
+                        if (targetTabIndex !== currentTabIndex) {
+                            switchTab(targetTabIndex, doHighlight);
+                        } else {
+                            doHighlight();
+                        }
                     }); 
                 }); 
             }
             
-            function performSearch() { 
-                const queryTerms = searchBox.value.trim().toLowerCase().split(' ').filter(term => term.length > 0); 
-                if (queryTerms.length < 1 && searchBox.value.trim() !== '*') { 
+            function performSearch() {
+                const queryTerms = searchBox.value.trim().toLowerCase().split(' ').filter(term => term.length > 0);
+                if (queryTerms.length < 1 && searchBox.value.trim() !== '*') {
                     closeDetailsPanel();
-                    return []; 
-                } 
-                const matches = []; 
-                for (const nodeId in CONFIG.nodeDetails) { 
-                    const details = CONFIG.nodeDetails[nodeId]; 
-                    const collections = [...(details.variables || []), ...(details.methods || [])];
-                    const items = collections.flatMap(item => item.category ? item.items : item);
-                    items.forEach(item => { 
-                        const itemNameLower = item.name.toLowerCase(); 
-                        if (queryTerms.every(term => itemNameLower.includes(term))) { 
-                            matches.push({ nodeId, itemName: item.name, itemDesc: item.desc }); 
-                        } 
-                    }); 
-                } 
-                return matches; 
+                    return [];
+                }
+
+                const matches = [];
+
+                CONFIG.diagrams.forEach((diagram, tabIndex) => {
+                    // Extract all potential node IDs from the mermaid definition string
+                    const nodeIdsInDiagram = new Set(Array.from(diagram.definition.matchAll(/(\w+)(?:\[|\{|\(|\b)/g), m => m[1]));
+
+                    nodeIdsInDiagram.forEach(nodeId => {
+                        const details = CONFIG.nodeDetails[nodeId];
+
+                        if (details) {
+                            // Search node title from details
+                            const nodeTitle = details.title || nodeId;
+                            if (queryTerms.every(term => nodeTitle.toLowerCase().includes(term))) {
+                                matches.push({ nodeId, itemName: nodeTitle, itemDesc: "Match in Node Title", matchType: 'node', tabIndex });
+                            }
+                            // Search items (variables and methods)
+                            const collections = [...(details.variables || []), ...(details.methods || [])];
+                            const items = collections.flatMap(item => item.category ? item.items : item);
+                            items.forEach(item => {
+                                if (queryTerms.every(term => item.name.toLowerCase().includes(term))) {
+                                    matches.push({ nodeId, itemName: item.name, itemDesc: item.desc, matchType: 'item', tabIndex });
+                                }
+                            });
+                        } else {
+                            // Search the node ID itself if no details exist
+                            if (queryTerms.every(term => nodeId.toLowerCase().includes(term))) {
+                                matches.push({ nodeId, itemName: nodeId, itemDesc: "A node found in the diagram (no details).", matchType: 'node', tabIndex });
+                            }
+                        }
+                    });
+                });
+                
+                // Deduplicate results, prioritizing item matches over node matches if names are identical
+                const uniqueMatches = [];
+                const seen = new Set();
+                matches.sort((a, b) => (a.matchType === 'item' ? -1 : 1)); // Prioritize item matches
+                for (const match of matches) {
+                    const key = `${match.tabIndex}::${match.nodeId}::${match.itemName}`;
+                    if (!seen.has(key)) {
+                        uniqueMatches.push(match);
+                        seen.add(key);
+                    }
+                }
+
+                return uniqueMatches;
             }
+
 
             function setupPanelEventListeners() {
                 panel.addEventListener('mouseover', (event) => {
@@ -575,7 +652,12 @@
             };
 
             // --- Tab Management ---
-            function switchTab(tabIndex) {
+            function switchTab(tabIndex, onSwitchComplete = null) {
+                if (currentTabIndex === tabIndex && onSwitchComplete) {
+                    onSwitchComplete();
+                    return;
+                }
+                
                 currentTabIndex = tabIndex;
                 
                 document.querySelectorAll('.tab-btn').forEach((btn, index) => {
@@ -586,34 +668,36 @@
                     content.classList.toggle('active', index === tabIndex);
                 });
                 
-                closeDetailsPanel();
-                searchBox.value = '';
+                // Don't close panel or clear search when switching from a search result
+                if (!onSwitchComplete) {
+                    closeDetailsPanel();
+                    searchBox.value = '';
+                }
                 
                 initializeDiagram(tabIndex).then(() => {
-                     // After initializing (if needed), ensure it's centered
                     const panZoomInstance = getActivePanZoomInstance();
                     if(panZoomInstance) {
                         panZoomInstance.resize();
                         panZoomInstance.center();
                         panZoomInstance.fit();
                     }
+                    if (onSwitchComplete) {
+                        onSwitchComplete();
+                    }
                 });
             }
             
             function setupTabs() {
                 CONFIG.diagrams.forEach((diagram, index) => {
-                    // Create tab button
                     const tabBtn = document.createElement('button');
                     tabBtn.className = 'tab-btn';
                     tabBtn.textContent = diagram.title;
                     tabBtn.addEventListener('click', () => switchTab(index));
                     tabsContainer.appendChild(tabBtn);
 
-                    // Create diagram container
                     const diagramContainer = document.createElement('div');
                     diagramContainer.id = `diagram-container-${index}`;
                     diagramContainer.className = 'diagram-content';
-                    // Insert before the panel
                     diagramsWrapper.insertBefore(diagramContainer, panel);
                 });
             }
@@ -623,11 +707,9 @@
                 document.body.setAttribute('data-theme', theme);
                 localStorage.setItem('theme', theme);
 
-                // Destroy all existing instances
                 panZoomInstances.forEach(instance => instance?.destroy());
-                panZoomInstances = []; // Reset the array
+                panZoomInstances = [];
                 
-                // Re-initialize the current tab's diagram
                 initializeDiagram(currentTabIndex);
             }
 
@@ -648,42 +730,24 @@
             closePanelBtn.addEventListener('click', closeDetailsPanel);
             resizer.addEventListener('mousedown', initResizer);
             
-            // --- 真正的启动点 ---
             applyUiStrings();
             setupPanelEventListeners();
             setupTabs();
-            switchTab(0); // Load the first tab by default
+            switchTab(0);
         }
 
-
-        /**
-         * 动态脚本加载器。
-         * 这段代码会立即执行，负责加载配置文件，
-         * 并在加载成功后调用 initializeApp()。
-         */
         (function() {
-            // 1. 从 URL 获取 'config' 参数
             const params = new URLSearchParams(window.location.search);
-            const configName = params.get('config') || 'GAS'; // 默认加载 'GAS'
+            const configName = params.get('config') || 'UnLua';
 
-            // 2. 构建配置文件名
             const configFileName = `${configName}_config.js`;
-
-            // 3. 动态创建 script 标签
             const script = document.createElement('script');
             script.src = configFileName;
-
-            // 4. *** 关键改动 ***
-            //    设置 onload 事件，确保配置文件加载并执行完毕后，再调用主逻辑函数
             script.onload = initializeApp;
-
-            // 5. 设置 onerror 事件，用于处理加载失败的情况
             script.onerror = () => {
-                console.error(`无法加载配置文件: ${configFileName}. 请确保文件存在并且URL参数正确。`);
+                console.error(`无法加载配置文件: ${configFileName}.`);
                 alert(`错误: 无法加载配置文件 "${configFileName}".`);
             };
-            
-            // 6. 将脚本添加到 head 中，开始加载
             document.head.appendChild(script);
         })();
     </script>
