@@ -144,7 +144,17 @@
 
         .search-highlight>rect, .search-highlight>polygon { stroke: var(--search-highlight-stroke) !important; stroke-width: 2.5px !important }
         .selected-node>rect, .selected-node>polygon { stroke: var(--selected-node-stroke) !important; stroke-width: 3.5px !important }
-        .clickable-node { cursor: pointer }
+        
+        .clickable-node { cursor: pointer; }
+        .clickable-node:hover > rect,
+        .clickable-node:hover > polygon {
+            stroke: var(--panel-title-color) !important;
+            stroke-width: 2.5px !important;
+        }
+        .clickable-node:hover text, .clickable-node:hover tspan {
+            text-decoration: underline;
+        }
+
         .search-results-list, .details-list { padding: 0; margin: 0 }
         .search-result-item { padding: 12px; border-radius: 6px; margin-top: 10px; background-color: var(--details-bg-color); cursor: pointer; transition: box-shadow 0.2s; }
         .search-result-item:hover { box-shadow: 0 0 0 2px var(--search-highlight-stroke); }
